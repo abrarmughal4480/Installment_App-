@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "Installments Manager",
+    "slug": "app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "app",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/images/android-icon-foreground.png",
+    
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.app",
+      "buildNumber": "1",
+      "icon": "./assets/images/android-icon-foreground.png",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to the camera",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access."
+      }
+    },
+    
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.app",
+      "versionCode": 1,
+      "icon": "./assets/images/android-icon-foreground.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+
+    "androidStatusBar": {
+      "backgroundColor": "#FFFFFF"
+    },
+
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/android-icon-foreground.png",
+      "platforms": ["web", "ios", "android"]
+    },
+
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/android-icon-foreground.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "backgroundColor": "#FFFFFF"
+          }
+        }
+      ],
+      "expo-font"
+    ],
+
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3264bc28-e20d-4c4b-9105-8ba71c48bc24"
+      }
+    },
+
+    "owner": "abrarmughal4480"
+  }
+}
