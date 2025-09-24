@@ -65,12 +65,14 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
       const response = await apiService.getAllInstallments();
       
       if (response.success) {
-        setInstallments(response.installments || []);
+        // Type assertion to handle the actual response structure
+        const installmentsResponse = response as any;
+        setInstallments(installmentsResponse.installments || []);
         setStats({
-          total: response.total || 0,
-          overdue: response.overdue || 0,
-          currentMonth: response.currentMonth || 0,
-          nextMonth: response.nextMonth || 0
+          total: installmentsResponse.total || 0,
+          overdue: installmentsResponse.overdue || 0,
+          currentMonth: installmentsResponse.currentMonth || 0,
+          nextMonth: installmentsResponse.nextMonth || 0
         });
       } else {
         setError(response.message || 'Failed to fetch installments');
