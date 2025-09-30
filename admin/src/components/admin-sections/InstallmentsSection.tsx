@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import apiService from '@/services/apiService';
+import { apiService } from '@/services/apiService';
 
 interface InstallmentsSectionProps {
   colors: any;
@@ -131,21 +131,63 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold" style={{ color: colors.text }}>
-          Installments
-        </h2>
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="h-8 bg-gray-200 rounded w-64 mb-2 animate-pulse"></div>
+            <div className="flex space-x-4 mt-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="h-10 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+        </div>
         
+        {/* Table Skeleton */}
         <div 
           className="p-6 rounded-2xl shadow-lg"
           style={{ backgroundColor: colors.cardBackground }}
         >
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
+                  {['Customer', 'Amount', 'Status', 'Due Date', 'Actions'].map((header, index) => (
+                    <th key={index} className="text-left py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-6 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        <div className="h-6 bg-gray-200 rounded w-12 animate-pulse"></div>
+                        <div className="h-6 bg-gray-200 rounded w-12 animate-pulse"></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

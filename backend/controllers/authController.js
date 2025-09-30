@@ -406,11 +406,25 @@ export const login = async (req, res) => {
         type: 'admin',
         isActive: true
       });
+    } else if (type === 'manager') {
+      // Manager login
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and password are required for manager login'
+        });
+      }
+
+      user = await User.findOne({ 
+        email: email.toLowerCase(), 
+        type: 'manager',
+        isActive: true
+      });
     } else {
-      // Customer login - for now, redirect to admin login since we removed customerId
+      // Invalid user type
       return res.status(400).json({
         success: false,
-        message: 'Customer login is not available. Please use admin login.'
+        message: 'Invalid user type. Please use admin or manager login.'
       });
     }
 
@@ -419,17 +433,19 @@ export const login = async (req, res) => {
         success: false,
         message: type === 'admin' 
           ? 'Invalid admin credentials' 
-          : 'Customer not found with this ID'
+          : type === 'manager'
+          ? 'Invalid manager credentials'
+          : 'User not found'
       });
     }
 
-    // For admin login, verify password
-    if (type === 'admin') {
+    // For admin and manager login, verify password
+    if (type === 'admin' || type === 'manager') {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid admin credentials'
+          message: type === 'admin' ? 'Invalid admin credentials' : 'Invalid manager credentials'
         });
       }
     }

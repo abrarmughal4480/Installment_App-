@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -9,7 +10,9 @@ export default function LoginPage() {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   
+  const router = useRouter();
   const headerAnimation = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,24 +20,100 @@ export default function LoginPage() {
     if (headerAnimation.current) {
       headerAnimation.current.style.transform = 'translateY(0)';
     }
-  }, []);
+
+    // Check if user is already logged in
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('user');
+      
+      if (token && userData) {
+        try {
+          const user = JSON.parse(userData);
+          if (user.type === 'admin') {
+            router.push('/dashboard/admin-dashboard');
+          } else if (user.type === 'manager') {
+            router.push('/dashboard/manager-dashboard');
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+          // Clear invalid data
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+        }
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password");
       return;
     }
     
     setIsLoading(true);
+    setError("");
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log("Login with:", { email, password });
-      // Handle actual login logic here
+      // Call backend API for authentication - try admin first, then manager
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      
+      // Try admin login first
+      let response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+          type: 'admin'
+        }),
+      });
+
+      let data = await response.json();
+
+      // If admin login fails, try manager login
+      if (!data.success) {
+        response = await fetch(`${apiUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password.trim(),
+            type: 'manager'
+          }),
+        });
+        data = await response.json();
+      }
+
+      if (data.success) {
+        // Store token in localStorage
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Also set token in cookies for middleware access
+        document.cookie = `authToken=${data.token}; path=/; max-age=86400; secure; samesite=strict`;
+        
+        // Redirect based on user type
+        if (data.user.type === 'admin') {
+          router.push("/dashboard/admin-dashboard");
+        } else if (data.user.type === 'manager') {
+          router.push("/dashboard/manager-dashboard");
+        } else {
+          router.push("/dashboard/admin-dashboard"); // fallback
+        }
+      } else {
+        setError(data.message || "Invalid credentials. Please check your email and password.");
+      }
     } catch (error) {
       console.error("Login error:", error);
+      setError("Network error. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +165,13 @@ export default function LoginPage() {
               Access manager dashboard to manage the system
             </p>
           </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm text-center">{error}</p>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 flex flex-col items-center">
@@ -180,7 +266,14 @@ export default function LoginPage() {
                   minHeight: '48px',
                 }}
               >
-                {isLoading ? 'Logging in...' : 'Login'}
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Logging in...
+                  </div>
+                ) : (
+                  'Login'
+                )}
               </button>
             </div>
           </form>

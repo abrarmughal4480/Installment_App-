@@ -35,9 +35,7 @@ export default function Header({ onAddManager, activeTab, onTabChange }: HeaderP
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'managers', label: 'Managers', icon: 'people' },
-    { id: 'installments', label: 'Installments', icon: 'credit_card' },
-    { id: 'reports', label: 'Reports', icon: 'analytics' },
-    { id: 'settings', label: 'Settings', icon: 'settings' }
+    { id: 'installments', label: 'Installments', icon: 'credit_card' }
   ];
 
   const handleLogout = () => {

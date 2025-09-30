@@ -491,6 +491,223 @@ export const payInstallment = async (req, res) => {
   }
 };
 
+// Update existing payment details
+export const updatePayment = async (req, res) => {
+  try {
+    const { installmentId } = req.params;
+    const { 
+      installmentNumber, 
+      paymentMethod = 'cash', 
+      notes = '',
+      customAmount = null // Allow custom payment amount
+    } = req.body;
+    
+    const installmentPlan = await Installment.findById(installmentId);
+
+    if (!installmentPlan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Installment plan not found'
+      });
+    }
+
+    // Find the specific installment in the array
+    const installment = installmentPlan.installments.find(inst => 
+      inst.installmentNumber === parseInt(installmentNumber)
+    );
+
+    if (!installment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Installment not found'
+      });
+    }
+
+    if (installment.status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only update paid installments'
+      });
+    }
+
+    // Validate custom amount if provided
+    if (customAmount !== null) {
+      const amount = parseFloat(customAmount);
+      if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment amount'
+        });
+      }
+    }
+
+    // Store the old amount for calculation
+    const oldPaidAmount = installment.actualPaidAmount || installment.amount;
+    
+    // Update payment details
+    installment.paymentMethod = paymentMethod;
+    installment.notes = notes;
+    installment.paidBy = req.user.userId;
+    
+    // Store the new actual paid amount (custom or original)
+    const newPaidAmount = customAmount !== null ? parseFloat(customAmount) : installment.amount;
+    installment.actualPaidAmount = newPaidAmount;
+    
+    // Calculate difference between old and new paid amount
+    const amountDifference = newPaidAmount - oldPaidAmount;
+    
+    // If there's a difference, redistribute it among remaining unpaid installments
+    if (amountDifference !== 0) {
+      const remainingInstallments = installmentPlan.installments.filter(inst => 
+        inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+      );
+      
+      if (remainingInstallments.length > 0) {
+        const amountPerInstallment = amountDifference / remainingInstallments.length;
+        // Round up to nearest 1 (always increase, never decrease)
+        const roundedAmountPerInstallment = Math.ceil(Math.abs(amountPerInstallment));
+        
+        // Update remaining installments
+        remainingInstallments.forEach(remainingInst => {
+          const newAmount = remainingInst.amount - (amountPerInstallment > 0 ? roundedAmountPerInstallment : -roundedAmountPerInstallment);
+          // Ensure amount doesn't go below 0
+          remainingInst.amount = Math.max(0, newAmount);
+        });
+      }
+    }
+    
+    await installmentPlan.save();
+
+    // Calculate distribution info for response
+    const remainingInstallments = installmentPlan.installments.filter(inst => 
+      inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+    );
+    
+    const distributionInfo = amountDifference !== 0 && remainingInstallments.length > 0 ? {
+      difference: amountDifference,
+      distributedTo: remainingInstallments.length,
+      amountPerInstallment: Math.ceil(Math.abs(amountDifference / remainingInstallments.length)),
+      message: amountDifference > 0 
+        ? `Excess payment of Rs. ${Math.abs(amountDifference).toLocaleString()} distributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(amountDifference / remainingInstallments.length)).toLocaleString()} each)`
+        : `Shortfall of Rs. ${Math.abs(amountDifference).toLocaleString()} distributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(amountDifference / remainingInstallments.length)).toLocaleString()} each)`
+    } : null;
+
+    res.json({
+      success: true,
+      message: 'Payment updated successfully',
+      installment: {
+        id: installmentPlan._id,
+        installmentNumber: installment.installmentNumber,
+        originalAmount: installment.amount,
+        actualPaidAmount: installment.actualPaidAmount,
+        paidDate: installment.paidDate,
+        status: installment.status,
+        paymentMethod: installment.paymentMethod,
+        notes: installment.notes
+      },
+      distribution: distributionInfo
+    });
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payment'
+    });
+  }
+};
+
+// Mark paid installment as unpaid (reverse payment)
+export const markInstallmentUnpaid = async (req, res) => {
+  try {
+    const { installmentId } = req.params;
+    const { installmentNumber } = req.body;
+    
+    const installmentPlan = await Installment.findById(installmentId);
+
+    if (!installmentPlan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Installment plan not found'
+      });
+    }
+
+    // Find the specific installment in the array
+    const installment = installmentPlan.installments.find(inst => 
+      inst.installmentNumber === parseInt(installmentNumber)
+    );
+
+    if (!installment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Installment not found'
+      });
+    }
+
+    if (installment.status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only mark paid installments as unpaid'
+      });
+    }
+
+    // Store the paid amount for reverse distribution calculation
+    const paidAmount = installment.actualPaidAmount || installment.amount;
+    
+    // Mark installment as unpaid
+    installment.status = 'pending';
+    installment.paidDate = undefined;
+    installment.paymentMethod = undefined;
+    installment.notes = undefined;
+    installment.paidBy = undefined;
+    installment.actualPaidAmount = undefined;
+    
+    // Calculate reverse distribution - redistribute the paid amount among remaining installments
+    const remainingInstallments = installmentPlan.installments.filter(inst => 
+      inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+    );
+    
+    if (remainingInstallments.length > 0) {
+      const amountPerInstallment = paidAmount / remainingInstallments.length;
+      // Round up to nearest 1
+      const roundedAmountPerInstallment = Math.ceil(amountPerInstallment);
+      
+      // Add the amount back to remaining installments
+      remainingInstallments.forEach(remainingInst => {
+        remainingInst.amount = remainingInst.amount + roundedAmountPerInstallment;
+      });
+    }
+    
+    await installmentPlan.save();
+
+    // Calculate reverse distribution info for response
+    const distributionInfo = remainingInstallments.length > 0 ? {
+      originalPaidAmount: paidAmount,
+      distributedTo: remainingInstallments.length,
+      amountPerInstallment: Math.ceil(paidAmount / remainingInstallments.length),
+      message: `Previously paid amount of Rs. ${paidAmount.toLocaleString()} redistributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(paidAmount / remainingInstallments.length).toLocaleString()} each)`
+    } : null;
+
+    res.json({
+      success: true,
+      message: 'Installment marked as unpaid successfully',
+      installment: {
+        id: installmentPlan._id,
+        installmentNumber: installment.installmentNumber,
+        amount: installment.amount,
+        status: installment.status,
+        dueDate: installment.dueDate
+      },
+      distribution: distributionInfo
+    });
+  } catch (error) {
+    console.error('Error marking installment as unpaid:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark installment as unpaid'
+    });
+  }
+};
+
 // Update installment
 export const updateInstallment = async (req, res) => {
   try {

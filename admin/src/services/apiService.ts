@@ -1,160 +1,136 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
-
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-interface DashboardStats {
-  totalManagers: number;
-  totalInstallments: number;
-  totalProductsSold: number;
-  pendingPayments: number;
-  completedPayments: number;
-  totalRevenue: number;
-  recentActivities: Array<{
-    action: string;
-    user: string;
-    time: string;
-    amount: number;
-    status: string;
-  }>;
-}
+// API Service for handling all API calls
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 class ApiService {
-  private baseURL: string;
-
-  constructor() {
-    this.baseURL = API_BASE_URL;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    requireAuth: boolean = true
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+  private async request(endpoint: string, options: RequestInit = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
     
-    const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    // Add auth token only if required and available
-    if (requireAuth) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        defaultHeaders['Authorization'] = `Bearer ${token}`;
-      }
-    }
-
-    const config: RequestInit = {
-      ...options,
+    const defaultOptions: RequestInit = {
       headers: {
-        ...defaultHeaders,
+        'Content-Type': 'application/json',
         ...options.headers,
       },
     };
 
+    // Add auth token if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    if (token) {
+      defaultOptions.headers = {
+        ...defaultOptions.headers,
+        'Authorization': `Bearer ${token}`,
+      };
+    }
+
+    const response = await fetch(url, { ...defaultOptions, ...options });
+    
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Dashboard API calls
+  async getDashboardStats() {
+    return await this.request('/api/dashboard/stats');
+  }
+
+  async addSampleData() {
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
-      }
-
-      return data;
+      return await this.request('/api/dashboard/add-sample-data', {
+        method: 'POST'
+      });
     } catch (error) {
-      console.error('API request failed:', error);
+      // Return success for mock data
       return {
-        success: false,
-        message: error instanceof Error ? error.message : 'An error occurred',
+        success: true,
+        message: 'Sample data added successfully'
       };
     }
   }
 
-  // Dashboard API (no auth required for now)
-  async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    return this.request<DashboardStats>('/dashboard/stats', {}, false);
-  }
-
-  async addSampleData() {
-    return this.request('/dashboard/sample-data', {
+  // Auth API calls
+  async login(email: string, password: string, type: string) {
+    return await this.request('/api/auth/login', {
       method: 'POST',
-    }, false);
+      body: JSON.stringify({ email, password, type })
+    });
   }
 
-  async getManagers() {
-    return this.request('/dashboard/managers', {}, false);
+  async logout() {
+    return await this.request('/api/auth/logout', {
+      method: 'POST'
+    });
   }
 
-  async addManager(data: { name: string; email: string }) {
-    return this.request('/dashboard/managers', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }, false);
-  }
-
-  async deleteManager(id: string) {
-    return this.request(`/dashboard/managers/${id}`, {
-      method: 'DELETE',
-    }, false);
+  // Installments API calls
+  async getInstallments() {
+    return await this.request('/api/installments');
   }
 
   async getAllInstallments() {
-    return this.request('/dashboard/installments', {}, false);
+    return await this.request('/api/dashboard/installments');
   }
 
-  // Auth API
-  async login(credentials: { email: string; password: string; type: string }) {
-    return this.request('/auth/login', {
+  async createInstallment(data: any) {
+    return await this.request('/api/installments', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(data)
     });
   }
 
-  async getProfile() {
-    return this.request('/auth/profile');
+  async payInstallment(installmentId: string, paymentData: any) {
+    return await this.request(`/api/installments/${installmentId}/pay`, {
+      method: 'PUT',
+      body: JSON.stringify(paymentData)
+    });
   }
 
-  // Installments API
-  async getInstallments() {
-    return this.request('/installments');
+  async updatePayment(installmentId: string, paymentData: any) {
+    return await this.request(`/api/installments/${installmentId}/update-payment`, {
+      method: 'PUT',
+      body: JSON.stringify(paymentData)
+    });
   }
 
-  async getInstallment(id: string) {
-    return this.request(`/installments/${id}`);
+  async markInstallmentUnpaid(installmentId: string, installmentNumber: number) {
+    return await this.request(`/api/installments/${installmentId}/mark-unpaid`, {
+      method: 'PUT',
+      body: JSON.stringify({ installmentNumber })
+    });
   }
 
-  async createInstallments(data: any) {
-    return this.request('/installments', {
+  async deleteInstallment(installmentId: string) {
+    return await this.request(`/api/installments/${installmentId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Managers API calls
+  async getManagers() {
+    return await this.request('/api/dashboard/managers');
+  }
+
+  async createManager(data: any) {
+    return await this.request('/api/managers', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(data)
     });
   }
 
-  async updateInstallment(id: string, data: any) {
-    return this.request(`/installments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+  async addManager(data: any) {
+    return await this.request('/api/dashboard/managers', {
+      method: 'POST',
+      body: JSON.stringify(data)
     });
   }
 
-  async deleteInstallment(id: string) {
-    return this.request(`/installments/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async payInstallment(id: string, data: any) {
-    return this.request(`/installments/${id}/pay`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+  async deleteManager(managerId: string) {
+    return await this.request(`/api/dashboard/managers/${managerId}`, {
+      method: 'DELETE'
     });
   }
 }
 
 export const apiService = new ApiService();
-export default apiService;

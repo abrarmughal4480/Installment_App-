@@ -4,6 +4,8 @@ import {
   getInstallment,
   createInstallments,
   payInstallment,
+  updatePayment,
+  markInstallmentUnpaid,
   updateInstallment,
   deleteInstallment,
   getCustomerInstallments
@@ -24,6 +26,8 @@ router.get('/', getInstallments); // Get all installments (admin)
 router.get('/:installmentId', getInstallment); // Get single installment
 router.post('/', createInstallments); // Create installments for customer
 router.put('/:installmentId/pay', payInstallment); // Mark installment as paid
+router.put('/:installmentId/update-payment', updatePayment); // Update existing payment details
+router.put('/:installmentId/mark-unpaid', markInstallmentUnpaid); // Mark paid installment as unpaid
 router.put('/:installmentId', updateInstallment); // Update installment
 router.delete('/:installmentId', deleteInstallment); // Delete installment
 

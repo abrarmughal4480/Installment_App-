@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/layouts/Header";
 import OverviewSection from "@/components/admin-sections/OverviewSection";
 import ManagersSection from "@/components/admin-sections/ManagersSection";
 import InstallmentsSection from "@/components/admin-sections/InstallmentsSection";
-import ReportsSection from "@/components/admin-sections/ReportsSection";
-import SettingsSection from "@/components/admin-sections/SettingsSection";
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState("overview");
   const [managers, setManagers] = useState([]);
   const [installments, setInstallments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -39,10 +38,39 @@ export default function AdminDashboard() {
     glass: 'rgba(255, 255, 255, 0.95)'
   };
 
+  // Authentication check
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('user');
+      
+      if (!token || !userData) {
+        router.push('/');
+        return;
+      }
+
+      try {
+        const user = JSON.parse(userData);
+        if (user.type !== 'admin') {
+          router.push('/');
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        router.push('/');
+        return;
+      }
+      
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
   // Handle tab persistence on page refresh
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['overview', 'managers', 'installments', 'reports', 'settings'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'managers', 'installments'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -69,7 +97,17 @@ export default function AdminDashboard() {
     }).format(amount);
   };
 
-
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
@@ -94,15 +132,15 @@ export default function AdminDashboard() {
             formatCurrency={formatCurrency} 
           />
         )}
-
-        {activeTab === 'reports' && (
-          <ReportsSection colors={colors} />
-        )}
-
-        {activeTab === 'settings' && (
-          <SettingsSection colors={colors} />
-        )}
       </div>
     </div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
   );
 }
