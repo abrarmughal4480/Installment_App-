@@ -277,13 +277,6 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          {/* Help Text */}
-          <div className="mt-4 text-center">
-            <p className="text-sm font-medium" style={{ color: colors.primary }}>
-              Don't have account? <span className="underline cursor-pointer">Sign up as admin</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>

@@ -156,7 +156,7 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  {['Customer', 'Amount', 'Status', 'Due Date', 'Actions'].map((header, index) => (
+                  {['Customer', 'Amount', 'Status', 'Due Date', 'Created By', 'Actions'].map((header, index) => (
                     <th key={index} className="text-left py-3 px-4">
                       <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
                     </th>
@@ -177,6 +177,12 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
                     </td>
                     <td className="py-3 px-4">
                       <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <div className="h-3 bg-gray-200 rounded w-20 mb-1 animate-pulse"></div>
+                        <div className="h-2 bg-gray-200 rounded w-24 animate-pulse"></div>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex space-x-2">
@@ -313,6 +319,9 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
                   Due Date
                 </th>
                 <th className="text-left py-3 px-4 font-semibold" style={{ color: colors.text }}>
+                  Created By
+                </th>
+                <th className="text-left py-3 px-4 font-semibold" style={{ color: colors.text }}>
                   Actions
                 </th>
               </tr>
@@ -347,6 +356,16 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
                     </td>
                     <td className="py-3 px-4" style={{ color: colors.text }}>
                       {formatDate(installment.dueDate)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="font-medium text-sm" style={{ color: colors.text }}>
+                          {installment.createdBy?.name || 'Unknown Manager'}
+                        </p>
+                        <p className="text-xs" style={{ color: colors.lightText }}>
+                          {installment.createdBy?.email || ''}
+                        </p>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex space-x-2">
@@ -419,6 +438,39 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
                 scrollbarGutter: 'stable'
               }}
             >
+              {/* Manager Info */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
+                  Created By Manager
+                </h4>
+                <div 
+                  className="p-4 rounded-lg"
+                  style={{ backgroundColor: colors.inputBackground }}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-12 h-12 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: colors.primary }}
+                    >
+                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium" style={{ color: colors.text }}>
+                        {selectedInstallment.createdBy?.name || 'Unknown Manager'}
+                      </p>
+                      <p className="text-sm" style={{ color: colors.lightText }}>
+                        {selectedInstallment.createdBy?.email || 'No email available'}
+                      </p>
+                      <p className="text-xs" style={{ color: colors.lightText }}>
+                        Manager ID: {selectedInstallment.createdBy?._id || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Customer Info */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
