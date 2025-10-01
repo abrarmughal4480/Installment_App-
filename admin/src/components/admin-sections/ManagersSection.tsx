@@ -35,7 +35,9 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
       const response = await apiService.getManagers();
       
       if (response.success && response.data) {
-        setManagers(response.data as Manager[]);
+        // Filter to show only managers with type "manager"
+        const filteredManagers = (response.data as Manager[]).filter(manager => manager.type === 'manager');
+        setManagers(filteredManagers);
       } else {
         setError(response.message || 'Failed to fetch managers');
       }
