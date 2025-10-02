@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboardStats, addSampleData, getManagers, addManager, deleteManager, getAllInstallments } from '../controllers/dashboardController.js';
+import { getDashboardStats, addSampleData, getManagers, addManager, deleteManager, updateManager, getAllInstallments } from '../controllers/dashboardController.js';
 
 const router = express.Router();
 
@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/stats', getDashboardStats);
 router.get('/managers', getManagers);
 router.post('/managers', addManager);
+router.put('/managers/:id', updateManager);
 router.delete('/managers/:id', deleteManager);
 router.post('/sample-data', addSampleData);
 

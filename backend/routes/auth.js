@@ -6,7 +6,8 @@ import {
   register,
   login,
   logout,
-  getProfile
+  getProfile,
+  changePassword
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -22,5 +23,6 @@ router.post('/logout', logout);              // Logout
 
 // Protected routes
 router.get('/profile', authenticateToken, getProfile); // Get user profile
+router.post('/change-password', authenticateToken, changePassword); // Change password
 
 export default router;

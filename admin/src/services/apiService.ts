@@ -64,6 +64,13 @@ class ApiService {
     });
   }
 
+  async changePassword(passwordData: any) {
+    return await this.request('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(passwordData)
+    });
+  }
+
   // Installments API calls
   async getInstallments() {
     return await this.request('/api/installments');
@@ -129,6 +136,13 @@ class ApiService {
   async deleteManager(managerId: string) {
     return await this.request(`/api/dashboard/managers/${managerId}`, {
       method: 'DELETE'
+    });
+  }
+
+  async updateManager(managerId: string, data: any) {
+    return await this.request(`/api/dashboard/managers/${managerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
     });
   }
 }

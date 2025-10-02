@@ -6,14 +6,19 @@ import Header from "@/components/layouts/Header";
 import OverviewSection from "@/components/admin-sections/OverviewSection";
 import ManagersSection from "@/components/admin-sections/ManagersSection";
 import InstallmentsSection from "@/components/admin-sections/InstallmentsSection";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
+import { apiService } from "@/services/apiService";
+import { useToast } from "@/contexts/ToastContext";
 
 function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState("overview");
   const [managers, setManagers] = useState([]);
   const [installments, setInstallments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showSuccess, showError } = useToast();
 
   const colors = {
     background: '#F1F5F9',
@@ -97,6 +102,30 @@ function AdminDashboardContent() {
     }).format(amount);
   };
 
+  const openChangePasswordModal = () => {
+    setShowChangePasswordModal(true);
+  };
+
+  const closeChangePasswordModal = () => {
+    setShowChangePasswordModal(false);
+  };
+
+  const handleChangePassword = async (passwordData: any) => {
+    try {
+      const response = await apiService.changePassword(passwordData);
+      
+      if (response.success) {
+        showSuccess('Password Changed!', 'Your password has been updated successfully');
+        closeChangePasswordModal();
+      } else {
+        showError('Password Change Failed', response.message || 'Failed to change password');
+      }
+    } catch (err: any) {
+      console.error('Error changing password:', err);
+      showError('Password Change Failed', 'An error occurred while changing password');
+    }
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -111,7 +140,7 @@ function AdminDashboardContent() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Header onAddManager={handleAddManager} activeTab={activeTab} onTabChange={handleTabChange} />
+      <Header onAddManager={handleAddManager} activeTab={activeTab} onTabChange={handleTabChange} onOpenChangePassword={openChangePasswordModal} />
 
       {/* Main Content */}
       <div className="p-8">
@@ -133,6 +162,13 @@ function AdminDashboardContent() {
           />
         )}
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={closeChangePasswordModal}
+        onSubmit={handleChangePassword}
+      />
     </div>
   );
 }

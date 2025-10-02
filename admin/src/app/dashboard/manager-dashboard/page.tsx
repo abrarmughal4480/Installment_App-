@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AddInstallmentModal from '@/components/AddInstallmentModal';
 import PaymentModal from '@/components/PaymentModal';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 import { apiService } from '@/services/apiService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -17,7 +18,44 @@ const ManagerDashboard = () => {
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editInstallmentData, setEditInstallmentData] = useState<any>(null);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
+
+  // Actions dropdown functionality
+  const toggleActionsDropdown = () => {
+    setShowActionsDropdown(!showActionsDropdown);
+  };
+
+  const closeActionsDropdown = () => {
+    setShowActionsDropdown(false);
+  };
+
+  const openChangePasswordModal = () => {
+    setShowChangePasswordModal(true);
+    setShowActionsDropdown(false);
+  };
+
+  const closeChangePasswordModal = () => {
+    setShowChangePasswordModal(false);
+  };
+
+  // Change password functionality
+  const handleChangePassword = async (passwordData: any) => {
+    try {
+      const response = await apiService.changePassword(passwordData);
+      
+      if (response.success) {
+        showSuccess('Password Changed!', 'Your password has been updated successfully');
+        closeChangePasswordModal();
+      } else {
+        showError('Password Change Failed', response.message || 'Failed to change password');
+      }
+    } catch (err: any) {
+      console.error('Error changing password:', err);
+      showError('Password Change Failed', 'An error occurred while changing password');
+    }
+  };
 
   // Logout functionality
   const handleLogout = async () => {
@@ -153,6 +191,23 @@ const ManagerDashboard = () => {
     fetchInstallments();
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showActionsDropdown) {
+        const target = event.target as Element;
+        if (!target.closest('.actions-dropdown')) {
+          setShowActionsDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showActionsDropdown]);
+
   const handleAddInstallment = async (data: any) => {
     try {
       const response = await apiService.createInstallment(data);
@@ -219,7 +274,39 @@ const ManagerDashboard = () => {
               Manager Dashboard
             </h1>
           </div>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end items-center gap-2">
+            {/* Actions Button */}
+            <div className="relative actions-dropdown">
+              <button 
+                onClick={toggleActionsDropdown}
+                className="px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                title="Actions"
+              >
+                <span className="text-sm font-medium">Actions</span>
+                <svg className={`w-4 h-4 transition-transform duration-200 ${showActionsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {/* Actions Dropdown */}
+              {showActionsDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border" style={{ zIndex: 9999 }}>
+                  <div className="py-1">
+                    <button
+                      onClick={openChangePasswordModal}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      Change Password
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Logout Button */}
             <button 
               onClick={handleLogout}
               className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors duration-200"
@@ -593,6 +680,13 @@ const ManagerDashboard = () => {
         installment={selectedPaymentInstallment}
         isLoading={isRecordingPayment}
         isEditMode={isEditMode}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={closeChangePasswordModal}
+        onSubmit={handleChangePassword}
       />
        
     </div>

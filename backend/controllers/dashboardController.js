@@ -188,6 +188,137 @@ export const deleteManager = async (req, res) => {
   }
 };
 
+// Update manager
+export const updateManager = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, password, editType } = req.body;
+
+    // Validate ID
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Manager ID is required'
+      });
+    }
+
+    // Check if manager exists
+    const manager = await User.findById(id);
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manager not found'
+      });
+    }
+
+    // Check if manager is admin or manager type
+    if (!['admin', 'manager'].includes(manager.type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only update admin or manager accounts'
+      });
+    }
+
+    let updateData = {};
+    let newPassword = null;
+
+    if (editType === 'name') {
+      if (!name || name.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name must be at least 2 characters long'
+        });
+      }
+      updateData.name = name.trim();
+    }
+
+    if (editType === 'email') {
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email address'
+        });
+      }
+
+      // Check if email already exists
+      const existingUser = await User.findOne({ 
+        email: email.toLowerCase(),
+        _id: { $ne: id }
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+
+      updateData.email = email.toLowerCase();
+      
+      // Generate new password for email change
+      newPassword = emailService.generateOTP().substring(0, 8); // Use first 8 digits as password
+      const bcrypt = await import('bcryptjs');
+      updateData.password = await bcrypt.default.hash(newPassword, 12);
+      updateData.tempPassword = true;
+    }
+
+    if (editType === 'password') {
+      if (!password || password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long'
+        });
+      }
+
+      const bcrypt = await import('bcryptjs');
+      updateData.password = await bcrypt.default.hash(password, 12);
+      updateData.tempPassword = true;
+      newPassword = password;
+    }
+
+    // Update manager
+    const updatedManager = await User.findByIdAndUpdate(
+      id,
+      { ...updateData, updatedAt: new Date() },
+      { new: true }
+    );
+
+    // Send email notification if password was changed
+    if (newPassword && (editType === 'email' || editType === 'password')) {
+      try {
+        await emailService.sendPasswordResetEmail(
+          updatedManager.email,
+          updatedManager.name,
+          newPassword,
+          editType === 'email' ? 'email_changed' : 'password_reset'
+        );
+      } catch (emailError) {
+        console.error('Email sending error:', emailError);
+        // Don't fail the update if email fails
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Manager ${editType} updated successfully`,
+      data: {
+        id: updatedManager._id,
+        name: updatedManager.name,
+        email: updatedManager.email,
+        type: updatedManager.type
+      }
+    });
+
+  } catch (error) {
+    console.error('Update manager error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update manager',
+      error: error.message
+    });
+  }
+};
+
 // Add new manager
 export const addManager = async (req, res) => {
   try {
