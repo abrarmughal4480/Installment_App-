@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AddInstallmentModal from '@/components/AddInstallmentModal';
 import PaymentModal from '@/components/PaymentModal';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
@@ -11,6 +12,9 @@ import { useToast } from '@/contexts/ToastContext';
 import PDFGenerator from '@/components/PDFGenerator';
 
 const ManagerDashboard = () => {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<string | null>(null);
   const [showAddInstallmentModal, setShowAddInstallmentModal] = useState(false);
@@ -47,6 +51,34 @@ const ManagerDashboard = () => {
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [selectedPDFInstallment, setSelectedPDFInstallment] = useState<any>(null);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
+
+  // Authentication check
+  useEffect(() => {
+    const checkAuthentication = () => {
+      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('user');
+      
+      if (!token || !userData) {
+        // No token or user data, redirect to login
+        router.push('/');
+        return;
+      }
+      
+      try {
+        const user = JSON.parse(userData);
+        setIsAuthenticated(true);
+        setIsCheckingAuth(false);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Clear invalid data and redirect
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        router.push('/');
+      }
+    };
+
+    checkAuthentication();
+  }, [router]);
 
   // Actions dropdown functionality
   const toggleActionsDropdown = () => {
@@ -629,6 +661,23 @@ const ManagerDashboard = () => {
     }
   };
 
+
+  // Show loading screen while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, don't render anything (redirect will happen)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

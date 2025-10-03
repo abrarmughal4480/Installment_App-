@@ -5,8 +5,8 @@ export function middleware(request: NextRequest) {
   // Get the pathname
   const pathname = request.nextUrl.pathname
 
-  // Check if the route is an admin route
-  if (pathname.startsWith('/dashboard/admin-dashboard')) {
+  // Check if the route is a protected dashboard route
+  if (pathname.startsWith('/dashboard')) {
     // Get the token from cookies (we'll set this in the login)
     const token = request.cookies.get('authToken')?.value || 
                   request.headers.get('authorization')?.replace('Bearer ', '')
@@ -25,6 +25,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/admin-dashboard/:path*',
+    '/dashboard/:path*',
   ]
 }

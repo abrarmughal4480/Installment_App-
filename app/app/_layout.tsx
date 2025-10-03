@@ -2,7 +2,8 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import 'react-native-reanimated';
+// Temporarily commented out to fix build issues
+// import 'react-native-reanimated';
 
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { ToastProvider } from '../contexts/ToastContext';
