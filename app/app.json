@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "scheme": "app",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "icon": "./assets/images/android-icon-foreground.png",
     
     "ios": {
