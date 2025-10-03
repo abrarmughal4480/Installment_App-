@@ -142,7 +142,6 @@ export const sendOTP = async (req, res) => {
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Log OTP for debugging
-    console.log(`🔐 OTP Generated for ${email}: ${otp} (Expires in 10 minutes)`);
 
     // Store OTP in cache (not database)
     otpCache.set(email.toLowerCase(), {
@@ -216,7 +215,6 @@ export const verifyOTP = async (req, res) => {
 
     // Check if OTP matches
     if (otpData.otp !== otp) {
-      console.log(`❌ OTP Verification Failed for ${email}: Expected ${otpData.otp}, Got ${otp}`);
       return res.status(400).json({
         success: false,
         message: 'The verification code you entered is incorrect. Please check the code and try again.'
@@ -224,7 +222,6 @@ export const verifyOTP = async (req, res) => {
     }
 
     // Log successful OTP verification
-    console.log(`✅ OTP Verified Successfully for ${email}: ${otp}`);
 
     // OTP is valid - just return success, don't create user yet
     res.status(200).json({
@@ -309,7 +306,6 @@ export const register = async (req, res) => {
 
     // Verify OTP again for security
     if (otpData.otp !== otp) {
-      console.log(`❌ Final OTP Verification Failed for ${email}: Expected ${otpData.otp}, Got ${otp}`);
       return res.status(400).json({
         success: false,
         message: 'Invalid OTP. Please check the code and try again.'
@@ -317,7 +313,6 @@ export const register = async (req, res) => {
     }
 
     // Log successful final OTP verification
-    console.log(`✅ Final OTP Verification Successful for ${email}: ${otp}`);
 
     // Check if OTP is expired
     if (otpData.otpExpires < Date.now()) {
@@ -641,7 +636,6 @@ export const cleanupExpiredOTP = async () => {
     }
     
     if (cleanedCount > 0) {
-      console.log(`🧹 Cleaned up ${cleanedCount} expired OTP records from cache`);
     }
   } catch (error) {
     console.error('Cleanup expired OTP error:', error);

@@ -240,7 +240,124 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
       setManagerError('');
     }
     
-    return step1Valid && step2Valid && step3Valid;
+    // Additional comprehensive validation
+    const newErrors: Record<string, string> = {};
+    
+    // Customer ID validation
+    if (!formData.customerId.trim()) {
+      newErrors.customerId = 'Customer ID is required';
+    }
+    
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    }
+    
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Invalid email format';
+    }
+    
+    // Phone validation
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone is required';
+    } else if (!/^[0-9+\-\s()]+$/.test(formData.phone)) {
+      newErrors.phone = 'Invalid phone format';
+    } else if (formData.phone.replace(/[^0-9]/g, '').length < 10) {
+      newErrors.phone = 'Phone must have at least 10 digits';
+    }
+    
+    // Product name validation
+    if (!formData.productName.trim()) {
+      newErrors.productName = 'Product name is required';
+    } else if (formData.productName.trim().length < 2) {
+      newErrors.productName = 'Product name must be at least 2 characters';
+    }
+    
+    // Total amount validation
+    if (!formData.totalAmount.trim()) {
+      newErrors.totalAmount = 'Total amount is required';
+    } else {
+      const totalAmount = Number(removeCommas(formData.totalAmount));
+      if (isNaN(totalAmount) || totalAmount <= 0) {
+        newErrors.totalAmount = 'Enter a valid amount';
+      } else if (totalAmount < 1000) {
+        newErrors.totalAmount = 'Amount must be at least Rs. 1,000';
+      }
+    }
+    
+    // Advance amount validation
+    if (formData.advanceAmount.trim()) {
+      const advanceAmount = Number(removeCommas(formData.advanceAmount));
+      const totalAmount = Number(removeCommas(formData.totalAmount));
+      if (isNaN(advanceAmount) || advanceAmount < 0) {
+        newErrors.advanceAmount = 'Enter a valid advance amount';
+      } else if (advanceAmount >= totalAmount) {
+        newErrors.advanceAmount = 'Advance amount must be less than total amount';
+      }
+    }
+    
+    // Installment count validation
+    if (!formData.installmentCount.trim()) {
+      newErrors.installmentCount = 'Installment count is required';
+    } else {
+      const count = Number(formData.installmentCount);
+      if (isNaN(count) || count <= 0) {
+        newErrors.installmentCount = 'Enter a valid count';
+      } else if (count < 1) {
+        newErrors.installmentCount = 'At least 1 installment required';
+      } else if (count > 60) {
+        newErrors.installmentCount = 'Maximum 60 installments allowed';
+      }
+    }
+    
+    // Monthly installment validation
+    if (!formData.monthlyInstallment.trim()) {
+      newErrors.monthlyInstallment = 'Monthly installment is required';
+    } else {
+      const monthlyAmount = Number(removeCommas(formData.monthlyInstallment));
+      if (isNaN(monthlyAmount) || monthlyAmount <= 0) {
+        newErrors.monthlyInstallment = 'Enter a valid amount';
+      } else if (monthlyAmount < 100) {
+        newErrors.monthlyInstallment = 'Minimum installment amount is Rs. 100';
+      }
+    }
+    
+    // Start date validation
+    if (!formData.startDate.trim()) {
+      newErrors.startDate = 'Start date is required';
+    } else {
+      const startDate = new Date(formData.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate < today) {
+        newErrors.startDate = 'Start date cannot be in the past';
+      }
+    }
+    
+    // Due date validation
+    if (!formData.dueDate.trim()) {
+      newErrors.dueDate = 'Due day is required';
+    } else {
+      const dueDay = Number(formData.dueDate);
+      if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
+        newErrors.dueDate = 'Enter a valid day (1-31)';
+      }
+    }
+    
+    // Manager validation
+    if (!formData.managerId) {
+      newErrors.manager = 'Manager selection is required';
+    }
+    
+    setErrors(newErrors);
+    
+    // Return true only if all validations pass
+    return Object.keys(newErrors).length === 0 && step1Valid && step2Valid && step3Valid;
   };
 
   const nextStep = () => {
@@ -253,8 +370,29 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
+  // Check if form is ready to save
+  const isFormReady = () => {
+    return (
+      formData.customerId.trim() &&
+      formData.name.trim() &&
+      formData.email.trim() &&
+      formData.phone.trim() &&
+      formData.productName.trim() &&
+      formData.totalAmount.trim() &&
+      formData.installmentCount.trim() &&
+      formData.monthlyInstallment.trim() &&
+      formData.startDate.trim() &&
+      formData.dueDate.trim() &&
+      formData.managerId &&
+      !Object.keys(errors).length &&
+      !managerError
+    );
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
+      // Show error message to user
+      alert('Please fill all required fields correctly before saving.');
       return;
     }
 
@@ -782,12 +920,15 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 text-white rounded-full transition-colors duration-200 flex items-center justify-center gap-2"
+                disabled={isSubmitting || !isFormReady()}
+                className={`px-6 py-2 text-white rounded-full transition-colors duration-200 flex items-center justify-center gap-2 ${
+                  !isFormReady() ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 style={{ 
                   backgroundColor: '#3B82F6',
-                  opacity: isSubmitting ? 0.7 : 1
+                  opacity: isSubmitting ? 0.7 : (!isFormReady() ? 0.5 : 1)
                 }}
+                title={!isFormReady() ? 'Please fill all required fields' : ''}
               >
                 {isSubmitting ? (
                   <>
@@ -797,7 +938,14 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
                     {isEditMode ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  isEditMode ? 'Update Installment' : 'Create Installment'
+                  <>
+                    {!isFormReady() && (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    )}
+                    {isEditMode ? 'Update Installment' : 'Create Installment'}
+                  </>
                 )}
               </button>
             </div>

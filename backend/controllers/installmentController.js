@@ -185,9 +185,6 @@ export const getInstallment = async (req, res) => {
 // Create or update installments
 export const createInstallments = async (req, res) => {
   try {
-    console.log('Received data:', req.body);
-    console.log('User ID:', req.user?.userId);
-    
     const { 
       installmentId, // For update mode
       customerId, 
@@ -342,6 +339,16 @@ export const createInstallments = async (req, res) => {
       });
 
       await installment.save();
+
+      // Log successful creation
+      console.log(`✅ Installment Successfully Created!`);
+      console.log(`📋 Customer: ${installment.customerName} (ID: ${installment.customerId})`);
+      console.log(`📦 Product: ${installment.productName}`);
+      console.log(`💰 Total Amount: Rs. ${installment.totalAmount.toLocaleString()}`);
+      console.log(`📅 Installments: ${installment.installmentCount} payments`);
+      console.log(`👤 Created By: ${req.user?.userId}`);
+      console.log(`🆔 Installment ID: ${installment._id}`);
+      console.log(`⏰ Created At: ${new Date().toISOString()}`);
 
       res.status(201).json({
         success: true,

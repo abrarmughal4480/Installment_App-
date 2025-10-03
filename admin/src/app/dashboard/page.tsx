@@ -8,6 +8,7 @@ import EditManagerModal from '@/components/EditManagerModal';
 import AddManagerModal from '@/components/AddManagerModal';
 import { apiService } from '@/services/apiService';
 import { useToast } from '@/contexts/ToastContext';
+import PDFGenerator from '@/components/PDFGenerator';
 
 const ManagerDashboard = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -43,6 +44,8 @@ const ManagerDashboard = () => {
   const [installmentToMarkUnpaid, setInstallmentToMarkUnpaid] = useState<any>(null);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [selectedPDFInstallment, setSelectedPDFInstallment] = useState<any>(null);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   // Actions dropdown functionality
@@ -227,6 +230,17 @@ const ManagerDashboard = () => {
       document.body.style.overflow = 'unset';
     };
   }, [showLogoutModal]);
+
+  // PDF Generator functionality
+  const openPDFModal = (installment: any) => {
+    setSelectedPDFInstallment(installment);
+    setShowPDFModal(true);
+  };
+
+  const closePDFModal = () => {
+    setShowPDFModal(false);
+    setSelectedPDFInstallment(null);
+  };
 
   const confirmLogout = async () => {
     try {
@@ -529,7 +543,7 @@ const ManagerDashboard = () => {
   useEffect(() => {
     const isModalOpen = showDetailsModal || showAddInstallmentModal || showPaymentModal || 
                        showChangePasswordModal || showEditModal || showAddManagerModal ||
-                       showDeleteModal || showMarkUnpaidModal;
+                       showDeleteModal || showMarkUnpaidModal || showPDFModal;
     
     if (isModalOpen) {
       document.body.style.overflow = 'hidden';
@@ -541,7 +555,7 @@ const ManagerDashboard = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showDetailsModal, showAddInstallmentModal, showPaymentModal, showChangePasswordModal, showEditModal, showAddManagerModal, showDeleteModal, showMarkUnpaidModal]);
+  }, [showDetailsModal, showAddInstallmentModal, showPaymentModal, showChangePasswordModal, showEditModal, showAddManagerModal, showDeleteModal, showMarkUnpaidModal, showPDFModal]);
 
   const handleAddInstallment = async (data: any) => {
     try {
@@ -916,6 +930,14 @@ const ManagerDashboard = () => {
                                </button>
                              </>
                            )}
+                           <span className="text-gray-400">|</span>
+                           <button 
+                             onClick={() => openPDFModal(installment)}
+                             className="text-purple-600 hover:text-purple-800 hover:underline transition-colors duration-200"
+                             title="Generate PDF for Customer"
+                           >
+                             PDF
+                           </button>
                          </div>
                    </td>
                  </tr>
@@ -1554,6 +1576,12 @@ const ManagerDashboard = () => {
             </div>
           </div>
         )}
+        {/* PDF Generator Modal */}
+        <PDFGenerator
+          installment={selectedPDFInstallment}
+          isOpen={showPDFModal}
+          onClose={closePDFModal}
+        />
       </div>
     );
   };
