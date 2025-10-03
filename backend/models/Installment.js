@@ -111,7 +111,11 @@ const installmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  managerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
 }, {
   timestamps: true
 });
@@ -140,6 +144,7 @@ installmentSchema.index({ customerEmail: 1 });
 installmentSchema.index({ status: 1 });
 installmentSchema.index({ dueDate: 1 });
 installmentSchema.index({ createdBy: 1 });
+installmentSchema.index({ managerId: 1 });
 
 const Installment = mongoose.model('Installment', installmentSchema);
 

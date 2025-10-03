@@ -188,45 +188,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
-      }`}
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-    >
-      <div 
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-hidden transform transition-all duration-300 ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        style={{ backgroundColor: colors.cardBackground }}
-      >
-        {/* Enhanced Header */}
-        <div 
-          className="relative overflow-hidden"
-          style={{ 
-            background: `linear-gradient(135deg, ${colors.gradientStart} 0%, ${colors.gradientEnd} 100%)`
-          }}
-        >
-          <div className="absolute inset-0 bg-black opacity-10"></div>
-          <div className="relative p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 translate-y-0">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-t-2xl bg-blue-50">
+          <div className="relative p-4">
             <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-white text-lg">{isEditMode ? '✏️' : '💳'}</span>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    {isEditMode ? 'Edit Payment' : 'Record Payment'}
-                  </h2>
-                  <p className="text-white/90 text-sm">
-                    {isEditMode ? 'Update payment details' : 'Record payment for installment'}
-                  </p>
-                </div>
+              <div className="flex-1 text-center">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {isEditMode ? 'Edit Payment' : 'Record Payment'}
+                </h2>
               </div>
               <button 
                 onClick={handleClose}
-                className="text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200 p-2 rounded-full"
-                disabled={isLoading}
+                className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-all duration-200 p-2 rounded-full"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -237,170 +212,95 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
 
         {/* Modal Content */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
-          {/* Installment Info */}
-          {installment && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center mb-3">
-                <span className="text-blue-600 text-lg mr-2">📋</span>
-                <h3 className="text-lg font-semibold text-blue-800">Installment Details</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Number:</span>
-                  <span className="ml-2 font-semibold text-gray-800">#{installment.installmentNumber}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Due Date:</span>
-                  <span className="ml-2 font-semibold text-gray-800">{formatDate(installment.dueDate)}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-gray-600">Original Amount:</span>
-                  <span className="ml-2 font-bold text-blue-600 text-lg">{formatCurrency(installment.amount)}</span>
-                </div>
-                {isEditMode && installment.actualPaidAmount && (
-                  <div className="col-span-2">
-                    <span className="text-gray-600">Currently Paid:</span>
-                    <span className="ml-2 font-bold text-green-600 text-lg">{formatCurrency(installment.actualPaidAmount)}</span>
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Installment Info */}
+            {installment && (
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <div className="text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Installment #{installment.installmentNumber}</span>
+                    <span>{formatDate(installment.dueDate)}</span>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Payment Amount */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <span className="mr-2">💵</span>
-              {isEditMode ? 'Updated Payment Amount' : 'Payment Amount'} *
-            </label>
-            <input
-              type="number"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={paymentAmount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              placeholder="Enter amount"
-              style={{ color: colors.text }}
-            />
-            <p className="text-gray-500 text-xs mt-2">
-              {isEditMode 
-                ? 'Update the payment amount. Any changes will be reflected in the installment records and distributed across remaining installments.'
-                : 'You can pay more or less than the original amount. Any difference will be automatically distributed across remaining installments.'
-              }
-            </p>
-            
-            {/* Distribution Info Display */}
-            {distributionInfo && (
-              <div className={`mt-3 p-4 rounded-lg border ${
-                distributionInfo.isExcess 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'bg-yellow-50 border-yellow-200'
-              }`}>
-                <div className="flex items-center mb-2">
-                  <span className={`text-lg mr-2 ${
-                    distributionInfo.isExcess ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
-                    {distributionInfo.isExcess ? '📈' : '📉'}
-                  </span>
-                  <span className={`font-semibold ${
-                    distributionInfo.isExcess ? 'text-green-800' : 'text-yellow-800'
-                  }`}>
-                    {distributionInfo.isExcess ? 'Excess Payment' : 'Shortfall Payment'}
-                  </span>
+                  <div className="mt-1 font-semibold text-gray-800">
+                    Amount: {formatCurrency(installment.amount)}
+                  </div>
+                  {isEditMode && installment.actualPaidAmount && (
+                    <div className="mt-1 text-green-600">
+                      Paid: {formatCurrency(installment.actualPaidAmount)}
+                    </div>
+                  )}
                 </div>
-                <p className={`text-sm ${
-                  distributionInfo.isExcess ? 'text-green-700' : 'text-yellow-700'
-                }`}>
-                  {distributionInfo.message}
-                </p>
               </div>
             )}
-          </div>
 
-          {/* Payment Method */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              <span className="mr-2">💳</span>
-              Payment Method *
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {paymentMethods.map((method) => (
-                <button
-                  key={method.id}
-                  onClick={() => setPaymentMethod(method.id)}
-                  className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                    paymentMethod === method.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-center">
-                    <span className={`text-sm font-medium ${
-                      paymentMethod === method.id ? 'text-blue-700' : 'text-gray-700'
-                    }`}>
-                      {method.name}
-                    </span>
-                  </div>
-                </button>
-              ))}
+            {/* Payment Amount */}
+            <div>
+              <label htmlFor="paymentAmount" className="block text-sm font-medium text-black mb-1">
+                Payment Amount
+              </label>
+              <input
+                type="number"
+                id="paymentAmount"
+                value={paymentAmount}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black border-gray-300"
+                placeholder="Enter amount"
+              />
             </div>
-          </div>
 
-          {/* Payment Notes */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <span className="mr-2">📝</span>
-              Notes (Optional)
-            </label>
-            <textarea
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={paymentNotes}
-              onChange={(e) => setPaymentNotes(e.target.value)}
-              placeholder="Add any notes about this payment"
-              rows={3}
-              style={{ color: colors.text }}
-            />
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-between items-center">
-            {/* Mark as Unpaid Button (only in edit mode) */}
-            {isEditMode && onMarkUnpaid && (
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to mark this installment as unpaid? This will redistribute the paid amount across remaining installments.')) {
-                    onMarkUnpaid(installment.installmentNumber);
-                  }
-                }}
-                disabled={isLoading}
-                className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors duration-200 flex items-center gap-2"
+            {/* Payment Method */}
+            <div>
+              <label htmlFor="paymentMethod" className="block text-sm font-medium text-black mb-1">
+                Payment Method
+              </label>
+              <select
+                id="paymentMethod"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black border-gray-300"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Mark as Unpaid
-              </button>
-            )}
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3 ml-auto">
+                {paymentMethods.map((method) => (
+                  <option key={method.id} value={method.id}>
+                    {method.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Payment Notes */}
+            <div>
+              <label htmlFor="paymentNotes" className="block text-sm font-medium text-black mb-1">
+                Notes (Optional)
+              </label>
+              <textarea
+                id="paymentNotes"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black border-gray-300"
+                placeholder="Add any notes about this payment"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 justify-end">
               <button
+                type="button"
                 onClick={handleClose}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                disabled={isLoading}
+                className="px-6 py-2 text-black bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200 mr-2"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={isLoading}
-                className={`px-6 py-2 rounded-lg text-white font-medium transition-colors duration-200 flex items-center gap-2 ${
-                  isLoading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className="px-6 py-2 text-white rounded-full transition-colors duration-200 flex items-center justify-center gap-2"
+                style={{ 
+                  backgroundColor: colors.primary,
+                  opacity: isLoading ? 0.7 : 1
+                }}
               >
-                    {isLoading ? (
+                {isLoading ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -408,17 +308,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     {isEditMode ? 'Updating...' : 'Recording...'}
                   </>
                 ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {isEditMode ? 'Update Payment' : 'Record Payment'}
-                  </>
+                  isEditMode ? 'Update Payment' : 'Record Payment'
                 )}
               </button>
             </div>
-          </div>
-        </form>
+            
+            {/* Mark as Unpaid Option (only in edit mode) */}
+            {isEditMode && onMarkUnpaid && installment && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMarkUnpaid(installment.installmentNumber);
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors duration-200 text-sm"
+                >
+                  Mark as Unpaid
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
       </div>
     </div>
   );

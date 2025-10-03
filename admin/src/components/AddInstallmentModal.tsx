@@ -26,12 +26,18 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
     monthlyInstallment: '',
     startDate: new Date().toISOString().split('T')[0],
     dueDate: '',
+    managerId: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isVisible, setIsVisible] = useState(false);
+  const [managers, setManagers] = useState<any[]>([]);
+  const [showManagerDropdown, setShowManagerDropdown] = useState(false);
+  const [managerSearch, setManagerSearch] = useState('');
+  const [managerError, setManagerError] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(-1);
 
   const colors = {
     background: '#F8FAFC',
@@ -69,6 +75,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
     if (isOpen) {
       setIsVisible(true);
       document.body.style.overflow = 'hidden';
+      fetchManagers();
     } else {
       setIsVisible(false);
       document.body.style.overflow = 'unset';
@@ -78,6 +85,27 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  // Fetch managers
+  const fetchManagers = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiUrl}/api/dashboard/managers`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setManagers(result.managers || []);
+      }
+    } catch (err) {
+      console.error('Error fetching managers:', err);
+    }
+  };
 
   // Effect to populate form data when in edit mode
   useEffect(() => {
@@ -109,6 +137,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
         monthlyInstallment: formatNumberWithCommas(newMonthlyInstallment),
         startDate: new Date().toISOString().split('T')[0],
         dueDate: editData.dueDay?.toString() || '1',
+        managerId: editData.managerId || '',
       });
     }
   }, [isEditMode, editData, isOpen]);
@@ -199,7 +228,19 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
   };
 
   const validateForm = () => {
-    return validateStep(1) && validateStep(2) && validateStep(3);
+    const step1Valid = validateStep(1);
+    const step2Valid = validateStep(2);
+    const step3Valid = validateStep(3);
+    
+    // Validate manager selection
+    if (!formData.managerId) {
+      setManagerError('Please select a manager');
+      return false;
+    } else {
+      setManagerError('');
+    }
+    
+    return step1Valid && step2Valid && step3Valid;
   };
 
   const nextStep = () => {
@@ -235,6 +276,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
         monthlyInstallment: Number(removeCommas(formData.monthlyInstallment)),
         startDate: formData.startDate,
         dueDate: formData.dueDate,
+        managerId: formData.managerId,
         ...(isEditMode && { installmentId: editData.id })
       };
 
@@ -263,46 +305,96 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
       monthlyInstallment: '',
       startDate: new Date().toISOString().split('T')[0],
       dueDate: '',
+      managerId: '',
     });
     setErrors({});
     setCurrentStep(1);
     setIsVisible(false);
+    setShowManagerDropdown(false);
+    setManagerSearch('');
+    setManagerError('');
+    setSelectedIndex(-1);
     setTimeout(() => onClose(), 200);
   };
+
+  // Filter managers based on search
+  const filteredManagers = managers.filter(manager =>
+    manager.name.toLowerCase().includes(managerSearch.toLowerCase())
+  );
+
+  // Get selected manager name
+  const selectedManager = managers.find(m => m._id === formData.managerId);
+  const selectedManagerName = selectedManager ? selectedManager.name : '';
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showManagerDropdown) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < filteredManagers.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : filteredManagers.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < filteredManagers.length) {
+          const manager = filteredManagers[selectedIndex];
+          setFormData(prev => ({ ...prev, managerId: manager._id }));
+          setManagerSearch('');
+          setShowManagerDropdown(false);
+          setSelectedIndex(-1);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowManagerDropdown(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showManagerDropdown) {
+        const target = event.target as Element;
+        if (!target.closest('.manager-dropdown')) {
+          setShowManagerDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showManagerDropdown]);
 
   if (!isOpen) return null;
 
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
-      }`}
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
-    >
-      <div 
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden transform transition-all duration-300 ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        style={{ backgroundColor: colors.cardBackground }}
-      >
-        {/* Enhanced Header */}
-        <div 
-          className="relative overflow-hidden"
-          style={{ 
-            background: `linear-gradient(135deg, ${colors.gradientStart} 0%, ${colors.gradientEnd} 100%)`
-          }}
-        >
-          <div className="absolute inset-0 bg-black opacity-10"></div>
-          <div className="relative p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100 translate-y-0 overflow-hidden">
+        {/* Header - Fixed */}
+        <div className="relative overflow-hidden rounded-t-2xl bg-blue-50 flex-shrink-0">
+          <div className="relative p-4">
             <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">{isEditMode ? 'Edit Installment Plan' : 'Create Installment Plan'}</h2>
-                <p className="text-white/90 text-sm">{isEditMode ? 'Update the installment plan for your customer' : 'Set up a new installment plan for your customer'}</p>
+              <div className="flex-1 text-center">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {isEditMode ? 'Edit Installment' : 'Add Installment'}
+                </h2>
               </div>
               <button 
                 onClick={handleClose}
-                className="text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200 p-2 rounded-full"
-                disabled={isSubmitting}
+                className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-all duration-200 p-2 rounded-full"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -312,326 +404,404 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
           </div>
         </div>
 
-        {/* Modal Content */}
-        <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(95vh-120px)] modal-scrollbar">
-          {/* Customer Information Form */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Information</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer ID *</label>
-                <input
-                  type="text"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.customerId ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.customerId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
-                  placeholder="Enter customer ID"
-                  style={{ color: colors.text }}
-                />
-                {errors.customerId && (
-                  <p className="text-red-500 text-xs mt-1">{errors.customerId}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
-                <input
-                  type="text"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter customer name"
-                  style={{ color: colors.text }}
-                />
-                {errors.name && (
-                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                <input
-                  type="email"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter email address"
-                  style={{ color: colors.text }}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
-                <input
-                  type="tel"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.phone ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="Enter phone number"
-                  style={{ color: colors.text }}
-                />
-                {errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Enter address (optional)"
-                  style={{ color: colors.text }}
-                  rows={2}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Product Information */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Product Information</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-                <input
-                  type="text"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.productName ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.productName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, productName: e.target.value }))}
-                  placeholder="Enter product name"
-                  style={{ color: colors.text }}
-                />
-                {errors.productName && (
-                  <p className="text-red-500 text-xs mt-1">{errors.productName}</p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Description</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.productDescription}
-                  onChange={(e) => setFormData(prev => ({ ...prev, productDescription: e.target.value }))}
-                  placeholder="Enter product description (optional)"
-                  style={{ color: colors.text }}
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Installment Information */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Installment Information</h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Total Amount *</label>
-                <input
-                  type="text"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.totalAmount ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.totalAmount}
-                  onChange={(e) => {
-                    const numericValue = removeCommas(e.target.value);
-                    if (numericValue === '' || !isNaN(Number(numericValue))) {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        totalAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
-                      }));
-                    }
-                  }}
-                  placeholder="Enter total amount (e.g., 8,00,000)"
-                  style={{ color: colors.text }}
-                />
-                {errors.totalAmount && (
-                  <p className="text-red-500 text-xs mt-1">{errors.totalAmount}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Advance Amount</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.advanceAmount}
-                  onChange={(e) => {
-                    const numericValue = removeCommas(e.target.value);
-                    if (numericValue === '' || !isNaN(Number(numericValue))) {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        advanceAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
-                      }));
-                    }
-                  }}
-                  placeholder="Enter advance amount (optional) (e.g., 1,00,000)"
-                  style={{ color: colors.text }}
-                />
-                {errors.advanceAmount && (
-                  <p className="text-red-500 text-xs mt-1">{errors.advanceAmount}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Installment Count *</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.installmentCount ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    value={formData.installmentCount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, installmentCount: e.target.value }))}
-                    placeholder="Enter number"
-                    style={{ color: colors.text }}
-                  />
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.installmentUnit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, installmentUnit: e.target.value }))}
-                  >
-                    <option value="days">Days</option>
-                    <option value="weeks">Weeks</option>
-                    <option value="months">Months</option>
-                  </select>
-                </div>
-                {errors.installmentCount && (
-                  <p className="text-red-500 text-xs mt-1">{errors.installmentCount}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {formData.installmentUnit === 'days' ? 'Daily' : 
-                   formData.installmentUnit === 'weeks' ? 'Weekly' : 'Monthly'} Installment *
-                </label>
-                <div className="flex gap-2">
+        {/* Modal Content - Scrollable */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Customer Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="customerId" className="block text-sm font-medium text-black mb-1">
+                    Customer ID
+                  </label>
                   <input
                     type="text"
-                    className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.monthlyInstallment ? 'border-red-500' : 'border-gray-300'
+                    id="customerId"
+                    value={formData.customerId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.customerId ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    value={formData.monthlyInstallment}
+                    placeholder="Enter customer ID"
+                  />
+                  {errors.customerId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.customerId}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-black mb-1">
+                    Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter customer name"
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-black mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter email address"
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-black mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter phone number"
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-black mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    id="address"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Enter address (optional)"
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="manager" className="block text-sm font-medium text-black mb-1">
+                    Manager
+                  </label>
+                  <div className="relative manager-dropdown">
+                    <input
+                      type="text"
+                      id="manager"
+                      value={showManagerDropdown ? managerSearch : selectedManagerName}
+                      onChange={(e) => {
+                        setManagerSearch(e.target.value);
+                        setShowManagerDropdown(true);
+                        setSelectedIndex(-1);
+                      }}
+                      onFocus={() => setShowManagerDropdown(true)}
+                      onKeyDown={handleKeyDown}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                      placeholder="Select manager"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowManagerDropdown(!showManagerDropdown)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showManagerDropdown && (
+                      <div className="absolute z-10 w-full mt-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredManagers.length > 0 ? (
+                          filteredManagers.map((manager, index) => (
+                            <button
+                              key={manager._id}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, managerId: manager._id }));
+                                setManagerSearch('');
+                                setShowManagerDropdown(false);
+                                setSelectedIndex(-1);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-black ${
+                                index === selectedIndex 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : 'hover:bg-gray-100'
+                              }`}
+                            >
+                              {manager.name}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-500 text-sm">No managers found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {managerError && (
+                    <p className="text-red-500 text-xs mt-1">{managerError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Product Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Product Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="productName" className="block text-sm font-medium text-black mb-1">
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    id="productName"
+                    value={formData.productName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, productName: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.productName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter product name"
+                  />
+                  {errors.productName && (
+                    <p className="text-red-500 text-xs mt-1">{errors.productName}</p>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="productDescription" className="block text-sm font-medium text-black mb-1">
+                    Product Description
+                  </label>
+                  <textarea
+                    id="productDescription"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    value={formData.productDescription}
+                    onChange={(e) => setFormData(prev => ({ ...prev, productDescription: e.target.value }))}
+                    placeholder="Enter product description (optional)"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Installment Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Installment Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="totalAmount" className="block text-sm font-medium text-black mb-1">
+                    Total Amount
+                  </label>
+                  <input
+                    type="text"
+                    id="totalAmount"
+                    value={formData.totalAmount}
                     onChange={(e) => {
                       const numericValue = removeCommas(e.target.value);
                       if (numericValue === '' || !isNaN(Number(numericValue))) {
                         setFormData(prev => ({ 
                           ...prev, 
-                          monthlyInstallment: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
+                          totalAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
                         }));
                       }
                     }}
-                    placeholder="Auto calculated (e.g., 25,000)"
-                    style={{ color: colors.text }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.totalAmount ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter total amount"
                   />
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg flex items-center">
-                    <span className="text-sm font-medium text-blue-600">
-                      {formData.installmentUnit === 'days' ? 'Rs/day' : 
-                       formData.installmentUnit === 'weeks' ? 'Rs/week' : 'Rs/month'}
-                    </span>
-                  </div>
+                  {errors.totalAmount && (
+                    <p className="text-red-500 text-xs mt-1">{errors.totalAmount}</p>
+                  )}
                 </div>
-                {errors.monthlyInstallment && (
-                  <p className="text-red-500 text-xs mt-1">{errors.monthlyInstallment}</p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                <input
-                  type="date"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.startDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.startDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                />
-                {errors.startDate && (
-                  <p className="text-red-500 text-xs mt-1">{errors.startDate}</p>
-                )}
-              </div>
+                <div>
+                  <label htmlFor="advanceAmount" className="block text-sm font-medium text-black mb-1">
+                    Advance Amount
+                  </label>
+                  <input
+                    type="text"
+                    id="advanceAmount"
+                    value={formData.advanceAmount}
+                    onChange={(e) => {
+                      const numericValue = removeCommas(e.target.value);
+                      if (numericValue === '' || !isNaN(Number(numericValue))) {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          advanceAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
+                        }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    placeholder="Enter advance amount (optional)"
+                  />
+                  {errors.advanceAmount && (
+                    <p className="text-red-500 text-xs mt-1">{errors.advanceAmount}</p>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Due Day *</label>
-                <input
-                  type="number"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.dueDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  value={formData.dueDate}
-                  onChange={(e) => {
-                    const numericValue = e.target.value.replace(/[^0-9]/g, '');
-                    if (numericValue === '' || (Number(numericValue) >= 1 && Number(numericValue) <= 31)) {
-                      setFormData(prev => ({ ...prev, dueDate: numericValue }));
-                    }
-                  }}
-                  placeholder="Enter day of month (1-31)"
-                  style={{ color: colors.text }}
-                  min="1"
-                  max="31"
-                />
-                {errors.dueDate && (
-                  <p className="text-red-500 text-xs mt-1">{errors.dueDate}</p>
-                )}
-                <p className="text-gray-500 text-xs mt-1">
-                  Day of each month when installments should be collected (e.g., 10 for 10th of every month)
-                </p>
+                <div>
+                  <label htmlFor="installmentCount" className="block text-sm font-medium text-black mb-1">
+                    Installment Count
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      id="installmentCount"
+                      value={formData.installmentCount}
+                      onChange={(e) => setFormData(prev => ({ ...prev, installmentCount: e.target.value }))}
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                        errors.installmentCount ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter number"
+                    />
+                    <select
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                      value={formData.installmentUnit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, installmentUnit: e.target.value }))}
+                    >
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                  {errors.installmentCount && (
+                    <p className="text-red-500 text-xs mt-1">{errors.installmentCount}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="monthlyInstallment" className="block text-sm font-medium text-black mb-1">
+                    {formData.installmentUnit === 'days' ? 'Daily' : 
+                     formData.installmentUnit === 'weeks' ? 'Weekly' : 'Monthly'} Installment
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id="monthlyInstallment"
+                      value={formData.monthlyInstallment}
+                      onChange={(e) => {
+                        const numericValue = removeCommas(e.target.value);
+                        if (numericValue === '' || !isNaN(Number(numericValue))) {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            monthlyInstallment: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
+                          }));
+                        }
+                      }}
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                        errors.monthlyInstallment ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Auto calculated"
+                    />
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg flex items-center">
+                      <span className="text-sm font-medium text-blue-600">
+                        {formData.installmentUnit === 'days' ? 'Rs/day' : 
+                         formData.installmentUnit === 'weeks' ? 'Rs/week' : 'Rs/month'}
+                      </span>
+                    </div>
+                  </div>
+                  {errors.monthlyInstallment && (
+                    <p className="text-red-500 text-xs mt-1">{errors.monthlyInstallment}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-black mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.startDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.startDate && (
+                    <p className="text-red-500 text-xs mt-1">{errors.startDate}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="dueDate" className="block text-sm font-medium text-black mb-1">
+                    Due Day
+                  </label>
+                  <input
+                    type="number"
+                    id="dueDate"
+                    value={formData.dueDate}
+                    onChange={(e) => {
+                      const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                      if (numericValue === '' || (Number(numericValue) >= 1 && Number(numericValue) <= 31)) {
+                        setFormData(prev => ({ ...prev, dueDate: numericValue }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                      errors.dueDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter day of month (1-31)"
+                    min="1"
+                    max="31"
+                  />
+                  {errors.dueDate && (
+                    <p className="text-red-500 text-xs mt-1">{errors.dueDate}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={handleClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className={`px-6 py-2 rounded-lg text-white font-medium transition-colors duration-200 flex items-center gap-2 ${
-                isSubmitting 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-            >
-                  {isSubmitting ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {isEditMode ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {isEditMode ? 'Update Installment' : 'Create Installment'}
-                </>
-              )}
-            </button>
-          </div>
+            <div className="flex gap-3 pt-4 justify-end">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-6 py-2 text-black bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2 text-white rounded-full transition-colors duration-200 flex items-center justify-center gap-2"
+                style={{ 
+                  backgroundColor: '#3B82F6',
+                  opacity: isSubmitting ? 0.7 : 1
+                }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {isEditMode ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  isEditMode ? 'Update Installment' : 'Create Installment'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

@@ -543,11 +543,10 @@ export default function LandingPage() {
 
 
   
+  // Swipe functionality commented out for future use
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      return Math.abs(gestureState.dy) > 3;
-    },
+    onStartShouldSetPanResponder: () => false, // () => true,
+    onMoveShouldSetPanResponder: () => false, // (evt, gestureState) => { return Math.abs(gestureState.dy) > 3; },
     onPanResponderGrant: () => {
       
     },
@@ -555,39 +554,40 @@ export default function LandingPage() {
       
     },
     onPanResponderRelease: (evt, gestureState) => {
-      const { dy } = gestureState;
+      // const { dy } = gestureState;
       
+      // // Swipe up to admin mode
+      // if (dy < -20 && !isAdminMode && !isSignUpMode) {
+      //   setIsAdminMode(true);
+      //   setCustomerId('');
+      //   setEmail('');
+      //   setPassword('');
+      //   setName('');
+      //   setConfirmPassword('');
+      //   setIsEmailFocused(false);
+      //   setIsPasswordFocused(false);
+      //   setIsCustomerIdFocused(false);
+      //   setIsNameFocused(false);
+      //   setIsConfirmPasswordFocused(false);
+      //   setCurrentStep(0);
+      // }
       
-      if (dy < -20 && !isAdminMode && !isSignUpMode) {
-        setIsAdminMode(true);
-        setCustomerId('');
-        setEmail('');
-        setPassword('');
-        setName('');
-        setConfirmPassword('');
-        setIsEmailFocused(false);
-        setIsPasswordFocused(false);
-        setIsCustomerIdFocused(false);
-        setIsNameFocused(false);
-        setIsConfirmPasswordFocused(false);
-        setCurrentStep(0);
-      }
-      
-      else if (dy > 20 && (isAdminMode || isSignUpMode)) {
-        setIsAdminMode(false);
-        setIsSignUpMode(false);
-        setCustomerId('');
-        setEmail('');
-        setPassword('');
-        setName('');
-        setConfirmPassword('');
-        setIsEmailFocused(false);
-        setIsPasswordFocused(false);
-        setIsCustomerIdFocused(false);
-        setIsNameFocused(false);
-        setIsConfirmPasswordFocused(false);
-        setCurrentStep(0);
-      }
+      // // Swipe down to customer mode
+      // else if (dy > 20 && (isAdminMode || isSignUpMode)) {
+      //   setIsAdminMode(false);
+      //   setIsSignUpMode(false);
+      //   setCustomerId('');
+      //   setEmail('');
+      //   setPassword('');
+      //   setName('');
+      //   setConfirmPassword('');
+      //   setIsEmailFocused(false);
+      //   setIsPasswordFocused(false);
+      //   setIsCustomerIdFocused(false);
+      //   setIsNameFocused(false);
+      //   setIsConfirmPasswordFocused(false);
+      //   setCurrentStep(0);
+      // }
     },
   });
 
@@ -615,16 +615,6 @@ export default function LandingPage() {
                   <Text style={styles.modernHeaderSubtitle}>
                     {isAdminMode ? 'Manage your business' : isSignUpMode ? 'Get started with your account' : 'Manage your payments with ease'}
                   </Text>
-                  <View style={styles.swipeIndicator}>
-                    <Ionicons 
-                      name={isAdminMode ? "chevron-down" : isSignUpMode ? "chevron-down" : "chevron-up"} 
-                      size={16} 
-                      color="rgba(255, 255, 255, 0.8)" 
-                    />
-                    <Text style={styles.swipeHint}>
-                      {isAdminMode ? 'Swipe down for customer login' : isSignUpMode ? 'Swipe down for login' : 'Swipe up for admin login'}
-                    </Text>
-                  </View>
                 </View>
                 <View style={styles.headerIcon}>
                   <Ionicons 
@@ -1071,7 +1061,7 @@ export default function LandingPage() {
                     onChangeText={setCustomerId}
                     placeholder="Enter your customer ID"
                     placeholderTextColor={colors.lightText}
-                    keyboardType="numeric"
+                    keyboardType="default"
                     returnKeyType="done"
                     onSubmitEditing={handleLogin}
                     onFocus={() => setIsCustomerIdFocused(true)}

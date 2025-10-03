@@ -110,8 +110,8 @@ export const getDashboardStats = async (req, res) => {
 // Get all managers
 export const getManagers = async (req, res) => {
   try {
-    const managers = await User.find({ type: { $in: ['admin', 'manager'] } })
-      .select('name email type tempPassword createdAt')
+    const managers = await User.find({ type: 'manager' })
+      .select('name email phone type tempPassword isActive createdAt lastLogin')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -119,7 +119,7 @@ export const getManagers = async (req, res) => {
 
     res.json({
       success: true,
-      data: managers
+      managers: managers
     });
 
   } catch (error) {
@@ -230,6 +230,11 @@ export const updateManager = async (req, res) => {
         });
       }
       updateData.name = name.trim();
+      
+      // Also update phone if provided
+      if (req.body.phone !== undefined) {
+        updateData.phone = req.body.phone.trim();
+      }
     }
 
     if (editType === 'email') {
@@ -322,7 +327,7 @@ export const updateManager = async (req, res) => {
 // Add new manager
 export const addManager = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, phone } = req.body;
 
     // Validate input
     if (!name || !email) {
@@ -380,6 +385,7 @@ export const addManager = async (req, res) => {
     const newManager = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
+      phone: phone ? phone.trim() : '',
       password: hashedPassword,
       type: 'manager',
       tempPassword: true,
@@ -516,6 +522,7 @@ Installments App Team
         id: newManager._id,
         name: newManager.name,
         email: newManager.email,
+        phone: newManager.phone,
         type: newManager.type
       }
     });
@@ -643,6 +650,10 @@ export const getAllInstallments = async (req, res) => {
   try {
     console.log('📊 Fetching current month, next month, and overdue installments...');
     
+    // Get user information from request (set by auth middleware)
+    const user = req.user;
+    console.log('User making request:', { userId: user?.userId, userType: user?.type });
+    
     // Get current date and calculate date ranges
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -665,17 +676,54 @@ export const getAllInstallments = async (req, res) => {
       now: now.toISOString()
     });
     
-    // Get all installment records
-    const installmentRecords = await Installment.find({})
+    // Build query based on user role
+    let query = {};
+    
+    // If user is manager, only show installments assigned to them
+    if (user && user.type === 'manager') {
+      query.managerId = user.userId;
+      console.log('🔒 Manager filtering: Only showing installments for manager ID:', user.userId);
+    } else if (user && user.type === 'admin') {
+      console.log('👑 Admin access: Showing all installments');
+    } else {
+      console.log('⚠️ Unknown user type or no user:', user?.type);
+    }
+    
+    // Get installment records based on role
+    const installmentRecords = await Installment.find(query)
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
     console.log('Found installment records:', installmentRecords.length);
+    
+    // Manual populate managerId for all records
+    for (const record of installmentRecords) {
+      if (record.managerId) {
+        console.log(`Manual populate for record ${record._id}, managerId: ${record.managerId}`);
+        const manager = await User.findById(record.managerId);
+        console.log(`Found manager:`, manager);
+        if (manager) {
+          record.managerId = manager;
+        }
+      }
+    }
+
+    // Debug: Check if managerId is populated
+    if (installmentRecords.length > 0) {
+      console.log('First record managerId:', installmentRecords[0].managerId);
+      console.log('First record managerId type:', typeof installmentRecords[0].managerId);
+      console.log('First record managerId name:', installmentRecords[0].managerId?.name);
+      console.log('First record _id:', installmentRecords[0]._id);
+    }
 
     // Process each installment record to filter relevant installments
     const filteredInstallments = [];
     
     for (const record of installmentRecords) {
+      // Debug: Log manager info for each record
+      console.log(`Record ${record._id} managerId:`, record.managerId);
+      console.log(`Record ${record._id} managerName:`, record.managerId?.name);
+      
       for (const installment of record.installments) {
         const dueDate = new Date(installment.dueDate);
         const isOverdue = dueDate < now && installment.status === 'pending';
@@ -717,6 +765,13 @@ export const getAllInstallments = async (req, res) => {
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
             createdBy: record.createdBy,
+            managerName: record.managerId ? record.managerId.name : null,
+            // Debug: Log manager info
+            _debugManager: {
+              managerId: record.managerId,
+              managerName: record.managerId ? record.managerId.name : 'null',
+              managerType: typeof record.managerId
+            },
             isOverdue: isOverdue,
             isCurrentMonth: isCurrentMonth,
             isNextMonth: isNextMonth,

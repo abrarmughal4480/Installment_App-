@@ -1,5 +1,6 @@
 import express from 'express';
 import { getDashboardStats, addSampleData, getManagers, addManager, deleteManager, updateManager, getAllInstallments } from '../controllers/dashboardController.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -11,8 +12,8 @@ router.put('/managers/:id', updateManager);
 router.delete('/managers/:id', deleteManager);
 router.post('/sample-data', addSampleData);
 
-// Installments routes
-router.get('/installments', getAllInstallments);
+// Installments routes - requires authentication for role-based filtering
+router.get('/installments', authenticateToken, getAllInstallments);
 
 // Test endpoint to verify data
 router.get('/test', (req, res) => {

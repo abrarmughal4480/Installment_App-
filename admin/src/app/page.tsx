@@ -29,11 +29,8 @@ export default function LoginPage() {
       if (token && userData) {
         try {
           const user = JSON.parse(userData);
-          if (user.type === 'admin') {
-            router.push('/dashboard/admin-dashboard');
-          } else if (user.type === 'manager') {
-            router.push('/dashboard/manager-dashboard');
-          }
+          // Redirect both admin and manager to the same dashboard page
+          router.push('/dashboard');
         } catch (error) {
           console.error('Error parsing user data:', error);
           // Clear invalid data
@@ -100,14 +97,8 @@ export default function LoginPage() {
         // Also set token in cookies for middleware access
         document.cookie = `authToken=${data.token}; path=/; max-age=86400; secure; samesite=strict`;
         
-        // Redirect based on user type
-        if (data.user.type === 'admin') {
-          router.push("/dashboard/admin-dashboard");
-        } else if (data.user.type === 'manager') {
-          router.push("/dashboard/manager-dashboard");
-        } else {
-          router.push("/dashboard/admin-dashboard"); // fallback
-        }
+        // Redirect both admin and manager to the same dashboard page
+        router.push("/dashboard");
       } else {
         setError(data.message || "Invalid credentials. Please check your email and password.");
       }

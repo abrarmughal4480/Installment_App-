@@ -53,6 +53,8 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
     
+    // Token expiration is no longer applicable since tokens are unlimited
+    // This check is kept for backward compatibility but won't trigger
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,

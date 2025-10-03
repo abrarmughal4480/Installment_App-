@@ -347,15 +347,15 @@ export const register = async (req, res) => {
     // Remove OTP from cache after successful registration
     otpCache.delete(email.toLowerCase());
 
-    // Generate JWT token
+    // Generate JWT token (unlimited validity)
     const token = jwt.sign(
       { 
         userId: user._id, 
         email: user.email, 
         type: user.type
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || 'your-secret-key'
+      // No expiration - unlimited validity
     );
 
     // Send welcome email (optional, don't block registration if it fails)
@@ -454,15 +454,15 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT token
+    // Generate JWT token (unlimited validity)
     const token = jwt.sign(
       { 
         userId: user._id, 
         email: user.email, 
         type: user.type
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || 'your-secret-key'
+      // No expiration - unlimited validity
     );
 
     // Return user data (without sensitive information)

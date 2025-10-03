@@ -203,7 +203,8 @@ export const createInstallments = async (req, res) => {
       installmentUnit, 
       monthlyInstallment, 
       startDate, 
-      dueDate 
+      dueDate,
+      managerId // Manager ObjectId
     } = req.body;
 
     // Check if this is an update operation
@@ -297,6 +298,7 @@ export const createInstallments = async (req, res) => {
       installment.startDate = start;
       installment.dueDay = parseInt(dueDate);
       installment.installments = newInstallmentsArray;
+      installment.managerId = managerId; // Save manager ObjectId
 
       await installment.save();
 
@@ -335,7 +337,8 @@ export const createInstallments = async (req, res) => {
         startDate: start,
         dueDay: parseInt(dueDate),
         installments: installmentsArray,
-        createdBy: req.user.userId
+        createdBy: req.user.userId,
+        managerId: managerId // Save manager ObjectId
       });
 
       await installment.save();
@@ -754,6 +757,14 @@ export const updateInstallment = async (req, res) => {
 export const deleteInstallment = async (req, res) => {
   try {
     const { installmentId } = req.params;
+    
+    // Validate ObjectId format
+    if (!installmentId || installmentId.length !== 24) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid installment ID format'
+      });
+    }
     
     const installment = await Installment.findById(installmentId);
 

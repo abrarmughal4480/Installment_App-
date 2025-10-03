@@ -59,32 +59,32 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const showSuccess = useCallback((title: string, message?: string) => {
     showToast({ 
       type: 'success', 
-      title: truncateText(title), 
-      message: message ? truncateText(message) : undefined 
+      title: title, 
+      message: message 
     });
   }, [showToast]);
 
   const showError = useCallback((title: string, message?: string) => {
     showToast({ 
       type: 'error', 
-      title: truncateText(title), 
-      message: message ? truncateText(message) : undefined 
+      title: title, 
+      message: message 
     });
   }, [showToast]);
 
   const showWarning = useCallback((title: string, message?: string) => {
     showToast({ 
       type: 'warning', 
-      title: truncateText(title), 
-      message: message ? truncateText(message) : undefined 
+      title: title, 
+      message: message 
     });
   }, [showToast]);
 
   const showInfo = useCallback((title: string, message?: string) => {
     showToast({ 
       type: 'info', 
-      title: truncateText(title), 
-      message: message ? truncateText(message) : undefined 
+      title: title, 
+      message: message 
     });
   }, [showToast]);
 
@@ -106,7 +106,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 const ToastContainer: React.FC<{ toasts: Toast[]; removeToast: (id: string) => void }> = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-lg">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
       ))}
@@ -162,17 +162,17 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
   };
 
   return (
-    <div className={`max-w-sm w-full border rounded-lg shadow-lg p-4 ${getToastStyles()} animate-in slide-in-from-right duration-300`}>
+    <div className={`w-full border rounded-lg shadow-lg p-4 ${getToastStyles()} animate-in slide-in-from-right duration-300`}>
       <div className="flex items-start">
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
-        <div className="ml-3 w-0 flex-1">
-          <p className="text-sm font-medium">
+        <div className="ml-3 flex-1 min-w-0">
+          <p className="text-sm font-medium break-words">
             {toast.title}
           </p>
           {toast.message && (
-            <p className="mt-1 text-sm opacity-90">
+            <p className="mt-1 text-sm opacity-90 break-words">
               {toast.message}
             </p>
           )}
