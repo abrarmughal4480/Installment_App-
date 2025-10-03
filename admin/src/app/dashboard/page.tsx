@@ -50,6 +50,8 @@ const ManagerDashboard = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [selectedPDFInstallment, setSelectedPDFInstallment] = useState<any>(null);
+  const [installmentSearchTerm, setInstallmentSearchTerm] = useState('');
+  const [managerSearchTerm, setManagerSearchTerm] = useState('');
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   // Authentication check
@@ -499,6 +501,31 @@ const ManagerDashboard = () => {
     await fetchInstallments(false);
   };
 
+  // Filter installments based on search term
+  const filteredInstallments = installments.filter(installment => {
+    if (!installmentSearchTerm) return true;
+    const searchLower = installmentSearchTerm.toLowerCase();
+    return (
+      installment.customerName?.toLowerCase().includes(searchLower) ||
+      installment.customerId?.toLowerCase().includes(searchLower) ||
+      installment.productName?.toLowerCase().includes(searchLower) ||
+      installment.managerName?.toLowerCase().includes(searchLower) ||
+      installment.status?.toLowerCase().includes(searchLower) ||
+      installment.paymentMethod?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Filter managers based on search term
+  const filteredManagers = managers.filter(manager => {
+    if (!managerSearchTerm) return true;
+    const searchLower = managerSearchTerm.toLowerCase();
+    return (
+      manager.name?.toLowerCase().includes(searchLower) ||
+      manager.email?.toLowerCase().includes(searchLower) ||
+      manager.phone?.toLowerCase().includes(searchLower)
+    );
+  });
+
   // Detect user role and name from localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -834,32 +861,65 @@ const ManagerDashboard = () => {
                <thead>
                  <tr className="border-b bg-gray-50">
                    <th colSpan={11} className="text-left py-4 px-4 font-semibold text-gray-800 text-lg">
-                     <div className="flex items-center gap-6">
-                       <span
-                         onClick={() => handleSectionToggle('installments')}
-                         className={`cursor-pointer transition-colors duration-200 ${
-                           activeSection === 'installments' 
-                             ? 'text-blue-600 font-bold' 
-                             : 'text-gray-600 hover:text-blue-600'
-                         }`}
-                       >
-                         Installments ({installmentsCount})
-                       </span>
-                       {userRole === 'admin' && (
-                         <>
-                           <span className="text-gray-400 mx-4">|</span>
-                           <span
-                             onClick={() => handleSectionToggle('managers')}
-                             className={`cursor-pointer transition-colors duration-200 ${
-                               activeSection === 'managers' 
-                                 ? 'text-blue-600 font-bold' 
-                                 : 'text-gray-600 hover:text-blue-600'
-                             }`}
-                           >
-                             Managers ({managersCount})
-                           </span>
-                         </>
-                       )}
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-6">
+                         <span
+                           onClick={() => handleSectionToggle('installments')}
+                           className={`cursor-pointer transition-colors duration-200 ${
+                             activeSection === 'installments' 
+                               ? 'text-blue-600 font-bold' 
+                               : 'text-gray-600 hover:text-blue-600'
+                           }`}
+                         >
+                           Installments ({installmentSearchTerm ? filteredInstallments.length : installmentsCount})
+                         </span>
+                         {userRole === 'admin' && (
+                           <>
+                             <span className="text-gray-400 mx-4">|</span>
+                             <span
+                               onClick={() => handleSectionToggle('managers')}
+                               className={`cursor-pointer transition-colors duration-200 ${
+                                 activeSection === 'managers' 
+                                   ? 'text-blue-600 font-bold' 
+                                   : 'text-gray-600 hover:text-blue-600'
+                               }`}
+                             >
+                               Managers ({managerSearchTerm ? filteredManagers.length : managersCount})
+                             </span>
+                           </>
+                         )}
+                       </div>
+                       
+                       {/* Search Input - Inside table header */}
+                       <div className="w-48">
+                         {activeSection === 'installments' ? (
+                           <div className="relative">
+                             <input
+                               type="text"
+                               placeholder="Search installments..."
+                               value={installmentSearchTerm}
+                               onChange={(e) => setInstallmentSearchTerm(e.target.value)}
+                               className="w-full px-3 py-2 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                             />
+                             <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                             </svg>
+                           </div>
+                         ) : (
+                           <div className="relative">
+                             <input
+                               type="text"
+                               placeholder="Search managers..."
+                               value={managerSearchTerm}
+                               onChange={(e) => setManagerSearchTerm(e.target.value)}
+                               className="w-full px-3 py-1.5 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                             />
+                             <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                             </svg>
+                           </div>
+                         )}
+                       </div>
                      </div>
                    </th>
                  </tr>
@@ -903,17 +963,19 @@ const ManagerDashboard = () => {
                          </div>
                        </td>
                      </tr>
-                   ) : installments.length === 0 ? (
+                   ) : filteredInstallments.length === 0 ? (
                      <tr>
                        <td colSpan={11} className="text-center py-12">
                          <div className="text-gray-500">
-                           <p className="text-lg font-medium text-gray-900 mb-2">No installment is created yet</p>
+                           <p className="text-lg font-medium text-gray-900 mb-2">
+                             {installmentSearchTerm ? 'No installments found matching your search' : 'No installment is created yet'}
+                           </p>
                            <h4 className="text-sm font-medium text-gray-600">Installment Management</h4>
                          </div>
                        </td>
                      </tr>
                    ) : (
-                   installments.map((installment: any, index: number) => (
+                   filteredInstallments.map((installment: any, index: number) => (
                      <tr key={installment.id || index} className="border-b">
                        <td className="py-3 px-4 text-gray-600">{installment.customerId}</td>
                        <td className="py-3 px-4 text-gray-800">{installment.customerName}</td>
@@ -1006,17 +1068,19 @@ const ManagerDashboard = () => {
                          </div>
                        </td>
                      </tr>
-                   ) : managers.length === 0 ? (
+                   ) : filteredManagers.length === 0 ? (
                      <tr>
                        <td colSpan={6} className="text-center py-12">
                          <div className="text-gray-500">
-                           <p className="text-lg font-medium text-gray-900 mb-2">No manager is created yet</p>
+                           <p className="text-lg font-medium text-gray-900 mb-2">
+                             {managerSearchTerm ? 'No managers found matching your search' : 'No manager is created yet'}
+                           </p>
                            <h4 className="text-sm font-medium text-gray-600">Manager Management</h4>
                          </div>
                        </td>
                      </tr>
                    ) : (
-                     managers.map((manager: any, index: number) => (
+                     filteredManagers.map((manager: any, index: number) => (
                        <tr key={manager.id || index} className="border-b">
                          <td className="py-3 px-4 text-gray-800 w-1/6">{manager.name}</td>
                          <td className="py-3 px-4 text-gray-800 w-1/6">{manager.email}</td>
