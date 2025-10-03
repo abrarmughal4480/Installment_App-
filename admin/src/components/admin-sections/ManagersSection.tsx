@@ -363,7 +363,7 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
       <AddManagerModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={handleManagerAdded}
+        onSubmit={handleManagerAdded}
         colors={colors}
       />
 
