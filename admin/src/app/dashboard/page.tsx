@@ -17,6 +17,7 @@ import PDFGenerator from '@/components/PDFGenerator';
 import InvestorDashboard from '@/components/InvestorDashboard';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import UpdateProfitModal from '@/components/UpdateProfitModal';
+import ProfitDistributionModal from '@/components/ProfitDistributionModal';
 
 const ManagerDashboard = () => {
   const router = useRouter();
@@ -49,6 +50,8 @@ const ManagerDashboard = () => {
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [deleteType, setDeleteType] = useState<'investor' | 'loan' | 'manager' | 'installment' | null>(null);
+  const [showProfitDistributionModal, setShowProfitDistributionModal] = useState(false);
+  const [isDistributingProfits, setIsDistributingProfits] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedInvestor, setSelectedInvestor] = useState<any>(null);
   const [selectedManager, setSelectedManager] = useState<any>(null);
@@ -468,11 +471,46 @@ const ManagerDashboard = () => {
     }
   };
 
+  const openProfitDistributionModal = () => {
+    setShowProfitDistributionModal(true);
+  };
+
   const closeDeleteConfirmationModal = () => {
     setShowDeleteModal(false);
     setDeleteItem(null);
     setDeleteType(null);
     setIsDeleting(false);
+  };
+
+  const closeProfitDistributionModal = () => {
+    setShowProfitDistributionModal(false);
+    setIsDistributingProfits(false);
+  };
+
+  const handleDistributeProfits = async (data: any) => {
+    setIsDistributingProfits(true);
+    
+    try {
+      const response = await apiService.distributeProfits(data);
+      
+      if (response.success) {
+        // Refresh investors list
+        await fetchInvestors();
+        
+        showSuccess('Profits Distributed!', `Profits of Rs. ${(Math.round(data.netProfit) + 1).toLocaleString()} have been distributed successfully`);
+        closeProfitDistributionModal();
+        
+        console.log('Profits distributed successfully:', response.data);
+      } else {
+        console.error('Failed to distribute profits:', response.message);
+        showError('Distribution Failed', response.message || 'Failed to distribute profits');
+      }
+    } catch (err: any) {
+      console.error('Error distributing profits:', err);
+      showError('Distribution Failed', err.message || 'Failed to distribute profits');
+    } finally {
+      setIsDistributingProfits(false);
+    }
   };
 
   // Change password functionality
@@ -1330,7 +1368,7 @@ const ManagerDashboard = () => {
 
          {/* Full Width Installments Table */}
          <div className="mt-8 mx-4">
-           <div className="flex justify-end items-center mb-4">
+           <div className="flex justify-end items-center mb-4 gap-3">
              {/* Only show Add button for admin users */}
              {userRole === 'admin' && (
                <button 
@@ -1348,6 +1386,20 @@ const ManagerDashboard = () => {
                   activeSection === 'managers' ? 'Add Manager' : 
                   activeSection === 'investors' ? 'Add Investor' :
                   'Add Loan'}
+               </button>
+             )}
+             
+             {/* Distribute Profits button for investors section */}
+             {userRole === 'admin' && activeSection === 'investors' && investors.length > 0 && (
+               <button 
+                 onClick={openProfitDistributionModal}
+                 className="px-4 py-2 text-white font-medium rounded-full transition-colors duration-200 flex items-center gap-2 hover:bg-blue-400" 
+                 style={{ backgroundColor: '#3B82F6' }}
+               >
+                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                 </svg>
+                 Distribute Profits
                </button>
              )}
            </div>
@@ -1819,7 +1871,7 @@ const ManagerDashboard = () => {
                              >
                                Profit
                              </button>
-                               <button
+                             <button 
                                  onClick={() => handleDeleteInvestor(investor)}
                                  className="px-2 py-1 rounded text-xs font-medium hover:opacity-80 transition-opacity"
                                  style={{
@@ -1913,9 +1965,9 @@ const ManagerDashboard = () => {
                              <button
                                onClick={() => handleDeleteLoan(loan)}
                                className="px-2 py-1 rounded text-xs font-medium hover:opacity-80 transition-opacity"
-                               style={{
-                                 backgroundColor: '#EF444420',
-                                 color: '#EF4444'
+                               style={{ 
+                                 backgroundColor: '#EF444420', 
+                                 color: '#EF4444' 
                                }}
                              >
                                Delete
@@ -2306,6 +2358,24 @@ const ManagerDashboard = () => {
           danger: '#EF4444',
           text: '#0F172A',
           lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* Profit Distribution Modal */}
+      <ProfitDistributionModal
+        isOpen={showProfitDistributionModal}
+        onClose={closeProfitDistributionModal}
+        onSubmit={handleDistributeProfits}
+        investors={investors}
+        isLoading={isDistributingProfits}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#1F2937',
+          lightText: '#6B7280',
           cardBackground: '#FFFFFF',
           border: '#E2E8F0'
         }}

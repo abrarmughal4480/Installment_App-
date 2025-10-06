@@ -162,6 +162,13 @@ class ApiService {
     });
   }
 
+  async distributeProfits(data: any) {
+    return await this.request('/api/investors/distribute-profits', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   async deleteInvestor(investorId: string) {
     return await this.request(`/api/investors/${investorId}`, {
       method: 'DELETE'

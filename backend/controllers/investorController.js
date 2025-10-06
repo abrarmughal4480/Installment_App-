@@ -37,7 +37,7 @@ export const addInvestor = async (req, res) => {
     const { name, email, phone, password, investmentAmount, monthlyProfit } = req.body;
 
     // Validation
-    if (!name || !email || !phone || !password || !investmentAmount || monthlyProfit === undefined) {
+    if (!name || !email || !phone || !password || investmentAmount === undefined || investmentAmount === null) {
       return res.status(400).json({
         success: false,
         message: 'All fields are required'
@@ -354,6 +354,106 @@ export const getInvestorById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch investor',
+      error: error.message
+    });
+  }
+};
+
+// Distribute profits among investors
+export const distributeProfits = async (req, res) => {
+  try {
+    const { totalProfit, totalExpenses, netProfit, distribution } = req.body;
+    const userType = req.user?.type;
+
+    // Only admin can distribute profits
+    if (userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only admin can distribute profits.'
+      });
+    }
+
+    // Validation
+    if (!totalProfit || !totalExpenses || !netProfit || !distribution || !Array.isArray(distribution)) {
+      return res.status(400).json({
+        success: false,
+        message: 'All distribution data is required'
+      });
+    }
+
+    if (netProfit <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Net profit must be greater than zero'
+      });
+    }
+
+    // Update each investor's profit history
+    const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+    const updatePromises = distribution.map(async (investorData) => {
+      const investor = await User.findById(investorData._id);
+      if (investor) {
+        // Check if profit already exists for this month
+        const existingProfitIndex = investor.profitHistory.findIndex(
+          profit => profit.month === currentMonth
+        );
+
+        if (existingProfitIndex >= 0) {
+          // Update existing profit
+          investor.profitHistory[existingProfitIndex].profit = investorData.profitAmount;
+          investor.profitHistory[existingProfitIndex].updatedAt = new Date();
+        } else {
+          // Add new profit entry
+          investor.profitHistory.push({
+            month: currentMonth,
+            profit: investorData.profitAmount,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+
+        // Update monthly profit field
+        investor.monthlyProfit = investorData.profitAmount;
+        
+        await investor.save();
+        return {
+          investorId: investor._id,
+          investorName: investor.name,
+          profitAmount: investorData.profitAmount,
+          status: 'success'
+        };
+      } else {
+        return {
+          investorId: investorData._id,
+          investorName: investorData.name,
+          profitAmount: investorData.profitAmount,
+          status: 'failed',
+          error: 'Investor not found'
+        };
+      }
+    });
+
+    const results = await Promise.all(updatePromises);
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failedCount = results.filter(r => r.status === 'failed').length;
+
+    res.status(200).json({
+      success: true,
+      message: `Profits distributed successfully. ${successCount} investors updated, ${failedCount} failed.`,
+      data: {
+        totalProfit,
+        totalExpenses,
+        netProfit,
+        distributionResults: results,
+        month: currentMonth
+      }
+    });
+
+  } catch (error) {
+    console.error('Error distributing profits:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to distribute profits',
       error: error.message
     });
   }

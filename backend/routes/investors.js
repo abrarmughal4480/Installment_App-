@@ -7,7 +7,8 @@ import {
   getInvestorById,
   getInvestorDashboard,
   updateMonthlyProfit,
-  getInvestorProfitHistory
+  getInvestorProfitHistory,
+  distributeProfits
 } from '../controllers/investorController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -39,5 +40,8 @@ router.put('/:id', updateInvestor);
 
 // DELETE /api/investors/:id - Delete investor
 router.delete('/:id', deleteInvestor);
+
+// POST /api/investors/distribute-profits - Distribute profits among investors
+router.post('/distribute-profits', distributeProfits);
 
 export default router;
