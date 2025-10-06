@@ -40,6 +40,20 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({ installment, isOpen, onClos
   const [busy, setBusy] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Lock body scroll when modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const totals = useMemo(() => {
     if (!installment) return { totalAmount: 0, advanceAmount: 0, paidAmount: 0, remaining: 0 };
     

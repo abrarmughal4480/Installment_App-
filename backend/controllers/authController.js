@@ -415,11 +415,68 @@ export const login = async (req, res) => {
         type: 'manager',
         isActive: true
       });
+    } else if (type === 'investor') {
+      // Investor login - check User collection with investor type
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and password are required for investor login'
+        });
+      }
+
+      user = await User.findOne({ 
+        email: email.toLowerCase(), 
+        type: 'investor',
+        isActive: true
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid investor credentials'
+        });
+      }
+
+      // Verify password for investor
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid investor credentials'
+        });
+      }
+
+      // Update login times for investor
+      if (user.lastLogin) {
+        user.previousLogin = user.lastLogin;
+      }
+      user.lastLogin = new Date();
+      await user.save();
+
+      // Generate JWT token for investor
+      const token = jwt.sign(
+        { 
+          userId: user._id, 
+          email: user.email, 
+          type: 'investor'
+        },
+        process.env.JWT_SECRET || 'your-secret-key'
+      );
+
+      // Return investor data (without sensitive information)
+      const investorResponse = user.toJSON();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        user: investorResponse,
+        token
+      });
     } else {
       // Invalid user type
       return res.status(400).json({
         success: false,
-        message: 'Invalid user type. Please use admin or manager login.'
+        message: 'Invalid user type. Please use admin, manager, or investor login.'
       });
     }
 
@@ -445,7 +502,10 @@ export const login = async (req, res) => {
       }
     }
 
-    // Update last login
+    // Update login times - save current lastLogin as previousLogin, then update lastLogin
+    if (user.lastLogin) {
+      user.previousLogin = user.lastLogin;
+    }
     user.lastLogin = new Date();
     await user.save();
 
@@ -491,6 +551,7 @@ export const getProfile = async (req, res) => {
       });
     }
 
+    // Get user from database (all types now use User model)
     const user = await User.findById(userId);
     
     if (!user) {
@@ -571,7 +632,7 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user (all types now use User model)
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({

@@ -544,20 +544,21 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
         {/* Modal Content - Scrollable */}
         <div className="p-6 overflow-y-auto flex-1">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             {/* Customer Information */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="customerId" className="block text-sm font-medium text-black mb-1">
-                    Customer ID
+                    Customer ID *
                   </label>
                   <input
                     type="text"
                     id="customerId"
                     value={formData.customerId}
                     onChange={(e) => setFormData(prev => ({ ...prev, customerId: e.target.value }))}
+                    autoComplete="off"
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
                       errors.customerId ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -570,13 +571,14 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-black mb-1">
-                    Customer Name
+                    Customer Name *
                   </label>
                   <input
                     type="text"
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    autoComplete="off"
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
                       errors.name ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -589,7 +591,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-black mb-1">
-                    Email
+                    Email *
                   </label>
                   <input
                     type="email"
@@ -608,7 +610,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-black mb-1">
-                    Phone
+                    Phone *
                   </label>
                   <input
                     type="tel"
@@ -655,6 +657,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
                       }}
                       onFocus={() => setShowManagerDropdown(true)}
                       onKeyDown={handleKeyDown}
+                      autoComplete="off"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                       placeholder="Select manager"
                     />
@@ -709,7 +712,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="productName" className="block text-sm font-medium text-black mb-1">
-                    Product Name
+                    Product Name *
                   </label>
                   <input
                     type="text"
@@ -748,7 +751,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="totalAmount" className="block text-sm font-medium text-black mb-1">
-                    Total Amount
+                    Total Amount *
                   </label>
                   <input
                     type="text"
@@ -800,7 +803,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="installmentCount" className="block text-sm font-medium text-black mb-1">
-                    Installment Count
+                    Installment Count *
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -831,7 +834,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
                 <div>
                   <label htmlFor="monthlyInstallment" className="block text-sm font-medium text-black mb-1">
                     {formData.installmentUnit === 'days' ? 'Daily' : 
-                     formData.installmentUnit === 'weeks' ? 'Weekly' : 'Monthly'} Installment
+                     formData.installmentUnit === 'weeks' ? 'Weekly' : 'Monthly'} Installment *
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -866,7 +869,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="startDate" className="block text-sm font-medium text-black mb-1">
-                    Start Date
+                    Start Date *
                   </label>
                   <input
                     type="date"
@@ -884,7 +887,7 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
 
                 <div>
                   <label htmlFor="dueDate" className="block text-sm font-medium text-black mb-1">
-                    Due Day
+                    Due Day *
                   </label>
                   <input
                     type="number"
@@ -908,6 +911,11 @@ const AddInstallmentModal: React.FC<AddInstallmentModalProps> = ({ isOpen, onClo
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Required Fields Note */}
+            <div className="text-center pt-2">
+              <p className="text-sm text-red-600 font-medium">All fields marked with * are required</p>
             </div>
 
             <div className="flex gap-3 pt-4 justify-end">

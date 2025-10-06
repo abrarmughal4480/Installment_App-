@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface AddManagerModalProps {
   isOpen: boolean;
@@ -22,6 +22,20 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -78,9 +92,9 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 translate-y-0">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100 translate-y-0 overflow-hidden">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-t-2xl bg-blue-50">
+        <div className="relative overflow-hidden rounded-t-2xl bg-blue-50 flex-shrink-0">
           <div className="relative p-4">
             <div className="flex justify-between items-center">
               <div className="flex-1 text-center">
@@ -99,11 +113,12 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
         </div>
 
         {/* Modal Content */}
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Content - Scrollable */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-black mb-1">
-                Manager Name
+                Manager Name *
               </label>
               <input
                 type="text"
@@ -111,6 +126,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
+                autoComplete="off"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
                   errors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -123,7 +139,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-black mb-1">
-                Manager Email
+                Manager Email *
               </label>
               <input
                 type="email"
@@ -131,6 +147,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                autoComplete="off"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -146,7 +163,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
 
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-black mb-1">
-                Phone Number
+                Phone Number *
               </label>
               <input
                 type="tel"
@@ -154,6 +171,7 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
+                autoComplete="off"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
                   errors.phone ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -162,6 +180,11 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
               {errors.phone && (
                 <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
               )}
+            </div>
+
+            {/* Required Fields Note */}
+            <div className="text-center pt-2">
+              <p className="text-sm text-red-600 font-medium">All fields marked with * are required</p>
             </div>
 
             <div className="flex gap-3 pt-4 justify-end">

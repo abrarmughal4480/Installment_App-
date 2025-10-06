@@ -29,7 +29,7 @@ export default function LoginPage() {
       if (token && userData) {
         try {
           const user = JSON.parse(userData);
-          // Redirect both admin and manager to the same dashboard page
+          // Redirect admin, manager, and investor to the same dashboard page
           router.push('/dashboard');
         } catch (error) {
           console.error('Error parsing user data:', error);
@@ -89,6 +89,22 @@ export default function LoginPage() {
         data = await response.json();
       }
 
+      // If manager login also fails, try investor login
+      if (!data.success) {
+        response = await fetch(`${apiUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password.trim(),
+            type: 'investor'
+          }),
+        });
+        data = await response.json();
+      }
+
       if (data.success) {
         // Store token in localStorage
         localStorage.setItem('authToken', data.token);
@@ -97,7 +113,7 @@ export default function LoginPage() {
         // Also set token in cookies for middleware access
         document.cookie = `authToken=${data.token}; path=/; max-age=86400; secure; samesite=strict`;
         
-        // Redirect both admin and manager to the same dashboard page
+        // Redirect admin, manager, and investor to the same dashboard page
         router.push("/dashboard");
       } else {
         setError(data.message || "Invalid credentials. Please check your email and password.");

@@ -7,9 +7,16 @@ import PaymentModal from '@/components/PaymentModal';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import EditManagerModal from '@/components/EditManagerModal';
 import AddManagerModal from '@/components/AddManagerModal';
+import AddInvestorModal from '@/components/AddInvestorModal';
+import AddLoanModal from '@/components/AddLoanModal';
+import ViewLoanModal from '@/components/ViewLoanModal';
+import LoanPaymentModal from '@/components/LoanPaymentModal';
 import { apiService } from '@/services/apiService';
 import { useToast } from '@/contexts/ToastContext';
 import PDFGenerator from '@/components/PDFGenerator';
+import InvestorDashboard from '@/components/InvestorDashboard';
+import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
+import UpdateProfitModal from '@/components/UpdateProfitModal';
 
 const ManagerDashboard = () => {
   const router = useRouter();
@@ -27,21 +34,37 @@ const ManagerDashboard = () => {
   const [editInstallmentData, setEditInstallmentData] = useState<any>(null);
   const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<'installments' | 'managers'>('installments');
+  const [activeSection, setActiveSection] = useState<'installments' | 'managers' | 'investors' | 'loans'>('installments');
   const [showEditDropdown, setShowEditDropdown] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [showAddManagerModal, setShowAddManagerModal] = useState(false);
+  const [showAddInvestorModal, setShowAddInvestorModal] = useState(false);
+  const [showEditInvestorModal, setShowEditInvestorModal] = useState(false);
+  const [showAddLoanModal, setShowAddLoanModal] = useState(false);
+  const [showViewLoanModal, setShowViewLoanModal] = useState(false);
+  const [showLoanPaymentModal, setShowLoanPaymentModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [deleteType, setDeleteType] = useState<'investor' | 'loan' | 'manager' | 'installment' | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedInvestor, setSelectedInvestor] = useState<any>(null);
   const [selectedManager, setSelectedManager] = useState<any>(null);
   const [editType, setEditType] = useState<'name' | 'email' | 'password'>('name');
   const [managers, setManagers] = useState<any[]>([]);
   const [managersCount, setManagersCount] = useState(0);
+  const [investors, setInvestors] = useState<any[]>([]);
+  const [investorsCount, setInvestorsCount] = useState(0);
+  const [loans, setLoans] = useState<any[]>([]);
+  const [loansCount, setLoansCount] = useState(0);
   const [installmentsCount, setInstallmentsCount] = useState(0);
   const [userRole, setUserRole] = useState<string>('admin'); // Default to admin
   const [userName, setUserName] = useState<string>('User'); // Default user name
   const [isUserDataLoading, setIsUserDataLoading] = useState<boolean>(true); // Loading state for user data
+  const [userProfile, setUserProfile] = useState<any>(null); // User profile data from backend
+  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true); // Loading state for profile data
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMarkUnpaidModal, setShowMarkUnpaidModal] = useState(false);
   const [installmentToDelete, setInstallmentToDelete] = useState<any>(null);
@@ -52,6 +75,10 @@ const ManagerDashboard = () => {
   const [selectedPDFInstallment, setSelectedPDFInstallment] = useState<any>(null);
   const [installmentSearchTerm, setInstallmentSearchTerm] = useState('');
   const [managerSearchTerm, setManagerSearchTerm] = useState('');
+  const [investorSearchTerm, setInvestorSearchTerm] = useState('');
+  const [loanSearchTerm, setLoanSearchTerm] = useState('');
+  const [showUpdateProfitModal, setShowUpdateProfitModal] = useState(false);
+  const [selectedInvestorForProfit, setSelectedInvestorForProfit] = useState<any>(null);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   // Authentication check
@@ -101,9 +128,9 @@ const ManagerDashboard = () => {
   };
 
   // Section toggle functionality
-  const handleSectionToggle = (section: 'installments' | 'managers') => {
-    // Only allow managers section for admin users
-    if (section === 'managers' && userRole !== 'admin') {
+  const handleSectionToggle = (section: 'installments' | 'managers' | 'investors' | 'loans') => {
+    // Only allow managers, investors, and loans sections for admin users
+    if ((section === 'managers' || section === 'investors' || section === 'loans') && userRole !== 'admin') {
       return;
     }
     setActiveSection(section);
@@ -206,6 +233,47 @@ const ManagerDashboard = () => {
     setShowAddManagerModal(false);
   };
 
+  const openAddInvestorModal = () => {
+    setShowAddInvestorModal(true);
+  };
+
+  const closeAddInvestorModal = () => {
+    setShowAddInvestorModal(false);
+  };
+
+  const openAddLoanModal = () => {
+    setShowAddLoanModal(true);
+  };
+
+  const closeAddLoanModal = () => {
+    setShowAddLoanModal(false);
+  };
+
+  const openViewLoanModal = (loan: any) => {
+    setSelectedLoan(loan);
+    setShowViewLoanModal(true);
+  };
+
+  const closeViewLoanModal = () => {
+    setShowViewLoanModal(false);
+    setSelectedLoan(null);
+  };
+
+  const openLoanPaymentModal = (loan: any) => {
+    setSelectedLoan(loan);
+    setShowLoanPaymentModal(true);
+  };
+
+  const closeLoanPaymentModal = () => {
+    setShowLoanPaymentModal(false);
+    setSelectedLoan(null);
+  };
+
+  const closeEditInvestorModal = () => {
+    setShowEditInvestorModal(false);
+    setSelectedInvestor(null);
+  };
+
   const handleAddManager = async (data: any) => {
     try {
       const response = await apiService.addManager(data);
@@ -223,6 +291,188 @@ const ManagerDashboard = () => {
       console.error('Error adding manager:', err);
       showError('Add Failed', err.message || 'Failed to add manager');
     }
+  };
+
+  const handleAddInvestor = async (data: any) => {
+    try {
+      console.log('Adding investor:', data);
+      
+      const response = await apiService.addInvestor(data);
+      
+      if (response.success) {
+        // Refresh investors list
+        await fetchInvestors();
+        
+        showSuccess('Investor Added!', `${data.name} has been added successfully`);
+        closeAddInvestorModal();
+        
+        console.log('Investor added successfully:', response.data);
+      } else {
+        console.error('Failed to add investor:', response.message);
+        showError('Add Failed', response.message || 'Failed to add investor');
+      }
+    } catch (err: any) {
+      console.error('Error adding investor:', err);
+      showError('Add Failed', err.message || 'Failed to add investor');
+    }
+  };
+
+  const handleEditInvestor = async (data: any) => {
+    try {
+      console.log('Updating investor:', selectedInvestor._id, data);
+      
+      const response = await apiService.updateInvestor(selectedInvestor._id, data);
+      
+      if (response.success) {
+        // Refresh investors list
+        await fetchInvestors();
+        
+        showSuccess('Investor Updated!', `${data.name} has been updated successfully`);
+        closeEditInvestorModal();
+        
+        console.log('Investor updated successfully:', response.data);
+      } else {
+        console.error('Failed to update investor:', response.message);
+        showError('Update Failed', response.message || 'Failed to update investor');
+      }
+    } catch (err: any) {
+      console.error('Error updating investor:', err);
+      showError('Update Failed', err.message || 'Failed to update investor');
+    }
+  };
+
+  const handleAddLoan = async (data: any) => {
+    try {
+      console.log('Adding loan:', data);
+      
+      const response = await apiService.addLoan(data);
+      
+      if (response.success) {
+        // Refresh loans list
+        await fetchLoans();
+        
+        showSuccess('Loan Added!', `Loan of Rs. ${data.loanAmount.toLocaleString()} has been added successfully`);
+        closeAddLoanModal();
+        
+        console.log('Loan added successfully:', response.data);
+      } else {
+        console.error('Failed to add loan:', response.message);
+        showError('Add Failed', response.message || 'Failed to add loan');
+      }
+    } catch (err: any) {
+      console.error('Error adding loan:', err);
+      showError('Add Failed', err.message || 'Failed to add loan');
+    }
+  };
+
+  const handleAddLoanPayment = async (paymentData: any) => {
+    try {
+      console.log('Adding loan payment:', paymentData);
+      
+      const response = await apiService.addLoanPayment(selectedLoan._id, paymentData);
+      
+      if (response.success) {
+        // Refresh loans list
+        await fetchLoans();
+        
+        showSuccess('Payment Added!', `Payment of Rs. ${paymentData.amount.toLocaleString()} has been added successfully`);
+        closeLoanPaymentModal();
+        
+        console.log('Payment added successfully:', response.data);
+      } else {
+        console.error('Failed to add payment:', response.message);
+        showError('Payment Failed', response.message || 'Failed to add payment');
+      }
+    } catch (err: any) {
+      console.error('Error adding payment:', err);
+      showError('Payment Failed', err.message || 'Failed to add payment');
+    }
+  };
+
+  const handleDeleteLoan = async (loan: any) => {
+    setDeleteItem(loan);
+    setDeleteType('loan');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteInvestor = async (investor: any) => {
+    setDeleteItem(investor);
+    setDeleteType('investor');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteManager = async (manager: any) => {
+    // Use the original _id from the manager data, not the transformed id
+    const managerToDelete = {
+      ...manager,
+      _id: manager.id // The transformed id is actually the original _id
+    };
+    setDeleteItem(managerToDelete);
+    setDeleteType('manager');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteInstallment = async (installment: any) => {
+    setDeleteItem(installment);
+    setDeleteType('installment');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteItem || !deleteType) return;
+
+    setIsDeleting(true);
+    
+    try {
+      let response;
+      
+      if (deleteType === 'loan') {
+        response = await apiService.deleteLoan(deleteItem._id);
+      } else if (deleteType === 'investor') {
+        response = await apiService.deleteInvestor(deleteItem._id);
+      } else if (deleteType === 'manager') {
+        response = await apiService.deleteManager(deleteItem._id);
+      } else if (deleteType === 'installment') {
+        // Use recordId if available, otherwise use id
+        const installmentId = deleteItem.recordId || deleteItem.id;
+        response = await apiService.deleteInstallment(installmentId);
+      }
+      
+      if (response?.success) {
+        // Refresh appropriate list
+        if (deleteType === 'loan') {
+          await fetchLoans();
+          showSuccess('Loan Deleted!', `Loan for ${deleteItem.investorName} has been deleted successfully`);
+        } else if (deleteType === 'investor') {
+          await fetchInvestors();
+          showSuccess('Investor Deleted!', `${deleteItem.name} has been deleted successfully`);
+        } else if (deleteType === 'manager') {
+          await fetchManagers();
+          showSuccess('Manager Deleted!', `${deleteItem.name} has been deleted successfully`);
+        } else if (deleteType === 'installment') {
+          await fetchInstallments();
+          showSuccess('Installment Deleted!', `Installment plan for ${deleteItem.customerName} has been deleted successfully`);
+        }
+        
+        closeDeleteConfirmationModal();
+        console.log(`${deleteType} deleted successfully`);
+      } else {
+        console.error(`Failed to delete ${deleteType}:`, response?.message);
+        showError('Delete Failed', response?.message || `Failed to delete ${deleteType}`);
+      }
+    } catch (err: any) {
+      console.error(`Error deleting ${deleteType}:`, err);
+      showError('Delete Failed', err.message || `Failed to delete ${deleteType}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const closeDeleteConfirmationModal = () => {
+    setShowDeleteModal(false);
+    setDeleteItem(null);
+    setDeleteType(null);
+    setIsDeleting(false);
   };
 
   // Change password functionality
@@ -274,6 +524,17 @@ const ManagerDashboard = () => {
   const closePDFModal = () => {
     setShowPDFModal(false);
     setSelectedPDFInstallment(null);
+  };
+
+  // Profit modal functions
+  const openUpdateProfitModal = (investor: any) => {
+    setSelectedInvestorForProfit(investor);
+    setShowUpdateProfitModal(true);
+  };
+
+  const closeUpdateProfitModal = () => {
+    setShowUpdateProfitModal(false);
+    setSelectedInvestorForProfit(null);
   };
 
   const confirmLogout = async () => {
@@ -408,15 +669,51 @@ const ManagerDashboard = () => {
     }
   };
 
-  // Fetch only managers count
+  // Fetch only managers count (admin only)
   const fetchManagersCount = async () => {
     try {
       const response = await apiService.getManagers();
       if (response.success) {
         setManagersCount(response.managers?.length || 0);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching managers count:', err);
+      // If access denied, set count to 0
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        setManagersCount(0);
+      }
+    }
+  };
+
+  // Fetch only investors count (admin only)
+  const fetchInvestorsCount = async () => {
+    try {
+      const response = await apiService.getInvestors();
+      if (response.success) {
+        setInvestorsCount(response.data?.length || 0);
+      }
+    } catch (err: any) {
+      console.error('Error fetching investors count:', err);
+      // If access denied, set count to 0
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        setInvestorsCount(0);
+      }
+    }
+  };
+
+  // Fetch only loans count (admin only)
+  const fetchLoansCount = async () => {
+    try {
+      const response = await apiService.getLoans();
+      if (response.success) {
+        setLoansCount(response.data?.length || 0);
+      }
+    } catch (err: any) {
+      console.error('Error fetching loans count:', err);
+      // If access denied, set count to 0
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        setLoansCount(0);
+      }
     }
   };
 
@@ -445,9 +742,78 @@ const ManagerDashboard = () => {
         console.error('Failed to fetch managers:', response.message);
         showError('Failed to Load Managers', response.message || 'Unable to fetch managers data');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching managers:', err);
-      showError('Failed to Load Managers', 'Please check your connection and try again');
+      // If access denied, don't show error toast
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        console.log('Access denied for managers - user is not admin');
+        setManagers([]);
+        setManagersCount(0);
+      } else {
+        showError('Failed to Load Managers', 'Please check your connection and try again');
+      }
+    }
+  };
+
+  // Fetch investors from API
+  const fetchInvestors = async () => {
+    try {
+      console.log('Fetching investors from backend...');
+      
+      const response = await apiService.getInvestors();
+      
+      if (response.success) {
+        setInvestors(response.data);
+        setInvestorsCount(response.data.length);
+        console.log('Investors fetched successfully:', response.data.length);
+      } else {
+        console.error('Failed to fetch investors:', response.message);
+        showError('Failed to Load Investors', response.message || 'Unable to fetch investors data');
+      }
+    } catch (err: any) {
+      console.error('Error fetching investors:', err);
+      // If access denied, don't show error toast
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        console.log('Access denied for investors - user is not admin');
+        setInvestors([]);
+        setInvestorsCount(0);
+      } else {
+        showError('Failed to Load Investors', err.message || 'Please check your connection and try again');
+        // Fallback to empty array
+        setInvestors([]);
+        setInvestorsCount(0);
+      }
+    }
+  };
+
+  // Fetch loans from API
+  const fetchLoans = async () => {
+    try {
+      console.log('Fetching loans from backend...');
+      
+      const response = await apiService.getLoans();
+      
+      if (response.success) {
+        setLoans(response.data);
+        setLoansCount(response.data.length);
+        console.log('Loans fetched successfully:', response.data.length);
+      } else {
+        console.error('Failed to fetch loans:', response.message);
+        showError('Failed to Load Loans', response.message || 'Unable to fetch loans data');
+      }
+    } catch (err: any) {
+      console.error('Error fetching loans:', err);
+      // If access denied, don't show error toast
+      if (err.message?.includes('Access denied') || err.message?.includes('403')) {
+        console.log('Access denied for loans - user is not admin');
+        setLoans([]);
+        setLoansCount(0);
+      } else {
+        showError('Failed to Load Loans', err.message || 'Please check your connection and try again');
+        // Fallback to empty array
+        setLoans([]);
+        setLoansCount(0);
+      }
     }
   };
 
@@ -460,6 +826,28 @@ const ManagerDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching installments count:', err);
+    }
+  };
+
+  // Fetch user profile data from backend
+  const fetchUserProfile = async () => {
+    try {
+      setIsProfileLoading(true);
+      const response = await apiService.getProfile();
+      
+      if (response.success) {
+        setUserProfile(response.user);
+        console.log('Fetched user profile:', response.user);
+      } else {
+        console.error('Failed to fetch user profile:', response.message);
+        // Don't show error toast for profile fetch failure as it's not critical
+      }
+    } catch (err: any) {
+      console.error('Error fetching user profile:', err);
+      // Don't show error toast for profile fetch failure as it's not critical
+      // The UI will gracefully handle missing data
+    } finally {
+      setIsProfileLoading(false);
     }
   };
 
@@ -526,6 +914,28 @@ const ManagerDashboard = () => {
     );
   });
 
+  // Filter investors based on search term
+  const filteredInvestors = investors.filter(investor => {
+    if (!investorSearchTerm) return true;
+    const searchLower = investorSearchTerm.toLowerCase();
+    return (
+      investor.name?.toLowerCase().includes(searchLower) ||
+      investor.email?.toLowerCase().includes(searchLower) ||
+      investor.phone?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Filter loans based on search term
+  const filteredLoans = loans.filter(loan => {
+    if (!loanSearchTerm) return true;
+    const searchLower = loanSearchTerm.toLowerCase();
+    return (
+      loan.investorName?.toLowerCase().includes(searchLower) ||
+      loan.status?.toLowerCase().includes(searchLower) ||
+      loan.loanAmount?.toString().includes(searchLower)
+    );
+  });
+
   // Detect user role and name from localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -542,34 +952,55 @@ const ManagerDashboard = () => {
     }
     // Set loading to false after user data is processed
     setIsUserDataLoading(false);
+    
+    // Fetch user profile data from backend
+    fetchUserProfile();
   }, []);
 
   // Load data based on active tab on component mount
   useEffect(() => {
+    // Don't make API calls until user role is properly determined
+    if (isUserDataLoading) return;
+    
     if (activeSection === 'installments') {
       fetchInstallments();
-      // Only fetch managers count if user is admin
+      // Only fetch managers, investors, and loans count if user is admin
       if (userRole === 'admin') {
         fetchManagersCount();
+        fetchInvestorsCount();
+        fetchLoansCount();
       }
     } else if (activeSection === 'managers' && userRole === 'admin') {
       fetchManagers();
       fetchInstallmentsCount(); // Only fetch installments count
+    } else if (activeSection === 'investors' && userRole === 'admin') {
+      fetchInvestors();
+      fetchInstallmentsCount(); // Only fetch installments count
+    } else if (activeSection === 'loans' && userRole === 'admin') {
+      fetchLoans();
+      fetchInstallmentsCount(); // Only fetch installments count
     }
-  }, [userRole]);
+  }, [userRole, isUserDataLoading]);
 
   // Load data when tab changes
   useEffect(() => {
+    // Don't make API calls until user role is properly determined
+    if (isUserDataLoading) return;
+    
     if (activeSection === 'installments') {
       fetchInstallments();
     } else if (activeSection === 'managers' && userRole === 'admin') {
       fetchManagers();
+    } else if (activeSection === 'investors' && userRole === 'admin') {
+      fetchInvestors();
+    } else if (activeSection === 'loans' && userRole === 'admin') {
+      fetchLoans();
     }
-  }, [activeSection, userRole]);
+  }, [activeSection, userRole, isUserDataLoading]);
 
-  // Force manager users to stay on installments section
+  // Force manager and investor users to stay on installments section
   useEffect(() => {
-    if (userRole === 'manager' && activeSection === 'managers') {
+    if ((userRole === 'manager' || userRole === 'investor') && (activeSection === 'managers' || activeSection === 'investors' || activeSection === 'loans')) {
       setActiveSection('installments');
     }
   }, [userRole, activeSection]);
@@ -692,10 +1123,49 @@ const ManagerDashboard = () => {
   // Show loading screen while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-48"></div>
+            </div>
+          </div>
+
+          {/* Main Content Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    <div className="h-4 bg-gray-200 rounded w-28"></div>
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-40 mb-4"></div>
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex justify-between items-center">
+                        <div className="h-4 bg-gray-200 rounded w-32"></div>
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -704,6 +1174,23 @@ const ManagerDashboard = () => {
   // If not authenticated, don't render anything (redirect will happen)
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Show investor dashboard for investor users
+  if (userRole === 'investor') {
+    return (
+      <InvestorDashboard 
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+    );
   }
 
   return (
@@ -719,7 +1206,9 @@ const ManagerDashboard = () => {
               </div>
             ) : (
               <h1 className="text-3xl font-bold text-gray-800">
-                {userRole === 'admin' ? 'Admin Dashboard' : 'Manager Dashboard'}
+                {userRole === 'admin' ? 'Admin Dashboard' : 
+                 userRole === 'manager' ? 'Manager Dashboard' : 
+                 'Investor Dashboard'}
               </h1>
             )}
           </div>
@@ -798,24 +1287,36 @@ const ManagerDashboard = () => {
                  ) : (
                    <>
                      <p className="text-sm text-gray-800 whitespace-nowrap">
-                       Current Login: {new Date().toLocaleString('en-PK', {
-                         day: 'numeric',
-                         month: 'long',
-                         year: 'numeric',
-                         hour: '2-digit',
-                         minute: '2-digit',
-                         hour12: true
-                       })}
+                       Current Login: {isProfileLoading ? (
+                         <span className="text-gray-400">Loading...</span>
+                       ) : userProfile?.lastLogin ? (
+                         new Date(userProfile.lastLogin).toLocaleString('en-PK', {
+                           day: 'numeric',
+                           month: 'long',
+                           year: 'numeric',
+                           hour: '2-digit',
+                           minute: '2-digit',
+                           hour12: true
+                         })
+                       ) : (
+                         <span className="text-gray-400">Just logged in</span>
+                       )}
                      </p>
                      <p className="text-sm text-gray-800 whitespace-nowrap">
-                       Last Login: {new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleString('en-PK', {
-                         day: 'numeric',
-                         month: 'long',
-                         year: 'numeric',
-                         hour: '2-digit',
-                         minute: '2-digit',
-                         hour12: true
-                       })}
+                       Previous Login: {isProfileLoading ? (
+                         <span className="text-gray-400">Loading...</span>
+                       ) : userProfile?.previousLogin ? (
+                         new Date(userProfile.previousLogin).toLocaleString('en-PK', {
+                           day: 'numeric',
+                           month: 'long',
+                           year: 'numeric',
+                           hour: '2-digit',
+                           minute: '2-digit',
+                           hour12: true
+                         })
+                       ) : (
+                         <span className="text-gray-400">No previous login</span>
+                       )}
                      </p>
                    </>
                  )}
@@ -833,14 +1334,20 @@ const ManagerDashboard = () => {
              {/* Only show Add button for admin users */}
              {userRole === 'admin' && (
                <button 
-                 onClick={activeSection === 'installments' ? openAddInstallmentModal : openAddManagerModal}
+                 onClick={activeSection === 'installments' ? openAddInstallmentModal : 
+                          activeSection === 'managers' ? openAddManagerModal : 
+                          activeSection === 'investors' ? openAddInvestorModal :
+                          () => openAddLoanModal()}
                  className="px-4 py-2 text-white font-medium rounded-full transition-colors duration-200 flex items-center gap-2 hover:bg-green-400" 
                  style={{ backgroundColor: '#10B981' }}
                >
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                  </svg>
-                 {activeSection === 'installments' ? 'Add Installment' : 'Add Manager'}
+                 {activeSection === 'installments' ? 'Add Installment' : 
+                  activeSection === 'managers' ? 'Add Manager' : 
+                  activeSection === 'investors' ? 'Add Investor' :
+                  'Add Loan'}
                </button>
              )}
            </div>
@@ -871,7 +1378,9 @@ const ManagerDashboard = () => {
                                : 'text-gray-600 hover:text-blue-600'
                            }`}
                          >
-                           Installments ({installmentSearchTerm ? filteredInstallments.length : installmentsCount})
+                           Installments ({installmentSearchTerm ? filteredInstallments.length : (installmentsCount === 0 && isUserDataLoading) ? (
+                             <span className="inline-block w-6 h-4 bg-gray-200 rounded animate-pulse"></span>
+                           ) : installmentsCount})
                          </span>
                          {userRole === 'admin' && (
                            <>
@@ -884,7 +1393,35 @@ const ManagerDashboard = () => {
                                    : 'text-gray-600 hover:text-blue-600'
                                }`}
                              >
-                               Managers ({managerSearchTerm ? filteredManagers.length : managersCount})
+                               Managers ({managerSearchTerm ? filteredManagers.length : (managersCount === 0 && isUserDataLoading) ? (
+                                 <span className="inline-block w-6 h-4 bg-gray-200 rounded animate-pulse"></span>
+                               ) : managersCount})
+                             </span>
+                             <span className="text-gray-400 mx-4">|</span>
+                             <span
+                               onClick={() => handleSectionToggle('investors')}
+                               className={`cursor-pointer transition-colors duration-200 ${
+                                 activeSection === 'investors' 
+                                   ? 'text-blue-600 font-bold' 
+                                   : 'text-gray-600 hover:text-blue-600'
+                               }`}
+                             >
+                               Investors ({investorSearchTerm ? filteredInvestors.length : (investorsCount === 0 && isUserDataLoading) ? (
+                                 <span className="inline-block w-6 h-4 bg-gray-200 rounded animate-pulse"></span>
+                               ) : investorsCount})
+                             </span>
+                             <span className="text-gray-400 mx-4">|</span>
+                             <span
+                               onClick={() => handleSectionToggle('loans')}
+                               className={`cursor-pointer transition-colors duration-200 ${
+                                 activeSection === 'loans' 
+                                   ? 'text-blue-600 font-bold' 
+                                   : 'text-gray-600 hover:text-blue-600'
+                               }`}
+                             >
+                               Loans ({loanSearchTerm ? filteredLoans.length : (loansCount === 0 && isUserDataLoading) ? (
+                                 <span className="inline-block w-6 h-4 bg-gray-200 rounded animate-pulse"></span>
+                               ) : loansCount})
                              </span>
                            </>
                          )}
@@ -899,7 +1436,36 @@ const ManagerDashboard = () => {
                                placeholder="Search installments..."
                                value={installmentSearchTerm}
                                onChange={(e) => setInstallmentSearchTerm(e.target.value)}
+                               autoComplete="off"
                                className="w-full px-3 py-2 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                             />
+                             <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                             </svg>
+                           </div>
+                         ) : activeSection === 'managers' ? (
+                           <div className="relative">
+                             <input
+                               type="text"
+                               placeholder="Search managers..."
+                               value={managerSearchTerm}
+                               onChange={(e) => setManagerSearchTerm(e.target.value)}
+                               autoComplete="off"
+                               className="w-full px-3 py-1.5 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                             />
+                             <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                             </svg>
+                           </div>
+                         ) : activeSection === 'loans' ? (
+                           <div className="relative">
+                             <input
+                               type="text"
+                               placeholder="Search loans..."
+                               value={loanSearchTerm}
+                               onChange={(e) => setLoanSearchTerm(e.target.value)}
+                               autoComplete="off"
+                               className="w-full px-3 py-1.5 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                              />
                              <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -909,9 +1475,10 @@ const ManagerDashboard = () => {
                            <div className="relative">
                              <input
                                type="text"
-                               placeholder="Search managers..."
-                               value={managerSearchTerm}
-                               onChange={(e) => setManagerSearchTerm(e.target.value)}
+                               placeholder="Search investors..."
+                               value={investorSearchTerm}
+                               onChange={(e) => setInvestorSearchTerm(e.target.value)}
+                               autoComplete="off"
                                className="w-full px-3 py-1.5 pl-8 text-sm border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                              />
                              <svg className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -938,14 +1505,36 @@ const ManagerDashboard = () => {
                        <th className="text-left py-3 px-4 font-medium text-gray-700">Payment Method</th>
                        <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
                      </>
-                   ) : (
+                   ) : activeSection === 'managers' ? (
                      <>
                        <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Name</th>
                        <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Email</th>
                        <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Phone</th>
-                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Created Date</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Joined Date</th>
                        <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Last Login</th>
                        <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/6">Actions</th>
+                     </>
+                   ) : activeSection === 'loans' ? (
+                     <>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Debtor</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Loan Amount</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Interest Rate</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Duration</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Monthly Payment</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Paid Amount</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Remaining</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Status</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/9">Actions</th>
+                     </>
+                   ) : (
+                     <>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Name</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Email</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Phone</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Investment Amount</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">This Month Profit</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Joined Date</th>
+                       <th className="text-left py-3 px-4 font-medium text-gray-700 w-1/7">Actions</th>
                      </>
                    )}
                  </tr>
@@ -954,12 +1543,23 @@ const ManagerDashboard = () => {
                  {activeSection === 'installments' ? (
                    loading ? (
                      <tr>
-                       <td colSpan={11} className="text-center py-12">
-                         <div className="flex items-center justify-center gap-3">
-                           <svg className="w-6 h-6 animate-spin text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                           </svg>
-                           <span className="text-gray-600">Loading installments...</span>
+                       <td colSpan={11} className="p-0">
+                         <div className="bg-white">
+                           {[1, 2, 3, 4, 5].map((i) => (
+                             <div key={i} className="border-b border-gray-200 p-4">
+                               <div className="animate-pulse">
+                                 <div className="flex items-center space-x-4">
+                                   <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-24"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-12"></div>
+                                 </div>
+                               </div>
+                             </div>
+                           ))}
                          </div>
                        </td>
                      </tr>
@@ -1035,7 +1635,7 @@ const ManagerDashboard = () => {
                                </button>
                                <span className="text-gray-400">|</span>
                                <button 
-                                 onClick={() => openDeleteModal(installment)}
+                                 onClick={() => handleDeleteInstallment(installment)}
                                  className="text-red-600 hover:text-red-800 hover:underline transition-colors duration-200"
                                  title="Delete Installment"
                                >
@@ -1056,15 +1656,25 @@ const ManagerDashboard = () => {
                  </tr>
                    ))
                    )
-                 ) : (
+                 ) : activeSection === 'managers' ? (
                    loading ? (
                      <tr>
-                       <td colSpan={6} className="text-center py-12">
-                         <div className="flex items-center justify-center gap-3">
-                           <svg className="w-6 h-6 animate-spin text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                           </svg>
-                           <span className="text-gray-600">Loading managers...</span>
+                       <td colSpan={6} className="p-0">
+                         <div className="bg-white">
+                           {[1, 2, 3, 4, 5].map((i) => (
+                             <div key={i} className="border-b border-gray-200 p-4">
+                               <div className="animate-pulse">
+                                 <div className="flex items-center space-x-4">
+                                   <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-24"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                 </div>
+                               </div>
+                             </div>
+                           ))}
                          </div>
                        </td>
                      </tr>
@@ -1124,7 +1734,7 @@ const ManagerDashboard = () => {
 
                              </div>
                              <button 
-                               onClick={() => console.log('Delete Manager clicked')}
+                               onClick={() => handleDeleteManager(manager)}
                                className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium hover:opacity-80 transition-opacity"
                                style={{ 
                                  backgroundColor: '#EF444420', 
@@ -1138,7 +1748,184 @@ const ManagerDashboard = () => {
                        </tr>
                      ))
                    )
-                 )}
+                 ) : activeSection === 'investors' ? (
+                   loading ? (
+                     <tr>
+                       <td colSpan={6} className="p-0">
+                         <div className="bg-white">
+                           {[1, 2, 3, 4, 5].map((i) => (
+                             <div key={i} className="border-b border-gray-200 p-4">
+                               <div className="animate-pulse">
+                                 <div className="flex items-center space-x-4">
+                                   <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-24"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                 </div>
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </td>
+                     </tr>
+                   ) : filteredInvestors.length === 0 ? (
+                     <tr>
+                       <td colSpan={6} className="text-center py-12">
+                         <div className="text-gray-500">
+                           <p className="text-lg font-medium text-gray-900 mb-2">
+                             {investorSearchTerm ? 'No investors found matching your search' : 'No investor is created yet'}
+                           </p>
+                           <h4 className="text-sm font-medium text-gray-600">Investor Management</h4>
+                         </div>
+                       </td>
+                     </tr>
+                   ) : (
+                     filteredInvestors.map((investor: any, index: number) => (
+                       <tr key={investor.id || index} className="border-b">
+                         <td className="py-3 px-4 text-gray-800 w-1/7">{investor.name}</td>
+                         <td className="py-3 px-4 text-gray-800 w-1/7">{investor.email}</td>
+                         <td className="py-3 px-4 text-gray-600 w-1/7">{investor.phone}</td>
+                         <td className="py-3 px-4 text-gray-800 w-1/7">Rs. {investor.investmentAmount?.toLocaleString()}</td>
+                         <td className="py-3 px-4 text-green-600 w-1/7 font-medium">
+                           Rs. {investor.monthlyProfit?.toLocaleString() || '0'}
+                         </td>
+                         <td className="py-3 px-4 text-gray-600 w-1/7">
+                           {investor.createdAt ? new Date(investor.createdAt).toLocaleDateString() : '-'}
+                         </td>
+                         <td className="py-3 px-4 w-1/7">
+                           <div className="flex items-center gap-1">
+                             <button 
+                               onClick={() => {
+                                setSelectedInvestor(investor);
+                                setShowEditInvestorModal(true);
+                              }}
+                               className="px-2 py-1 rounded text-xs font-medium"
+                               style={{ 
+                                 backgroundColor: '#3B82F620', 
+                                 color: '#3B82F6' 
+                               }}
+                             >
+                               Edit
+                             </button>
+                             <button 
+                               onClick={() => openUpdateProfitModal(investor)}
+                               className="px-2 py-1 rounded text-xs font-medium"
+                               style={{ 
+                                 backgroundColor: '#10B98120', 
+                                 color: '#10B981' 
+                               }}
+                             >
+                               Profit
+                             </button>
+                               <button
+                                 onClick={() => handleDeleteInvestor(investor)}
+                                 className="px-2 py-1 rounded text-xs font-medium hover:opacity-80 transition-opacity"
+                                 style={{
+                                   backgroundColor: '#EF444420',
+                                   color: '#EF4444'
+                                 }}
+                               >
+                                 Delete
+                               </button>
+                           </div>
+                         </td>
+                       </tr>
+                     ))
+                   )
+                 ) : activeSection === 'loans' ? (
+                   loading ? (
+                     <tr>
+                       <td colSpan={9} className="p-0">
+                         <div className="bg-white">
+                           {[1, 2, 3, 4, 5].map((i) => (
+                             <div key={i} className="border-b border-gray-200 p-4">
+                               <div className="animate-pulse">
+                                 <div className="flex items-center space-x-4">
+                                   <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-24"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                   <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                 </div>
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </td>
+                     </tr>
+                   ) : filteredLoans.length === 0 ? (
+                     <tr>
+                       <td colSpan={9} className="text-center py-12">
+                         <div className="text-gray-500">
+                           <p className="text-lg font-medium text-gray-900 mb-2">
+                             {loanSearchTerm ? 'No loans found matching your search' : 'No loan is created yet'}
+                           </p>
+                           <h4 className="text-sm font-medium text-gray-600">Loan Management</h4>
+                         </div>
+                       </td>
+                     </tr>
+                   ) : (
+                     filteredLoans.map((loan: any, index: number) => (
+                       <tr key={loan._id || index} className="border-b">
+                         <td className="py-3 px-4 text-gray-800 w-1/9">{loan.investorName || '-'}</td>
+                         <td className="py-3 px-4 text-gray-800 w-1/9">Rs. {loan.loanAmount?.toLocaleString()}</td>
+                         <td className="py-3 px-4 text-gray-600 w-1/9">{loan.interestRate}%</td>
+                         <td className="py-3 px-4 text-gray-600 w-1/9">{loan.duration} months</td>
+                         <td className="py-3 px-4 text-gray-800 w-1/9">Rs. {loan.monthlyPayment ? (Math.round(loan.monthlyPayment) + 1).toLocaleString() : '-'}</td>
+                         <td className="py-3 px-4 text-green-600 w-1/9">Rs. {loan.paidAmount ? (Math.round(loan.paidAmount) + 1).toLocaleString() : '0'}</td>
+                         <td className="py-3 px-4 text-red-600 w-1/9">Rs. {loan.remainingAmount ? (Math.round(loan.remainingAmount) + 1).toLocaleString() : '-'}</td>
+                         <td className="py-3 px-4 w-1/9">
+                           <span className={`px-2 py-1 rounded-full text-xs ${
+                             loan.status === 'active' ? 'bg-green-100 text-green-800' :
+                             loan.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                             loan.status === 'defaulted' ? 'bg-red-100 text-red-800' :
+                             loan.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                             'bg-yellow-100 text-yellow-800'
+                           }`}>
+                             {loan.status?.charAt(0).toUpperCase() + loan.status?.slice(1)}
+                           </span>
+                         </td>
+                         <td className="py-3 px-4 w-1/9">
+                           <div className="flex items-center gap-1">
+                             <button
+                               onClick={() => openViewLoanModal(loan)}
+                               className="px-2 py-1 rounded text-xs font-medium"
+                               style={{
+                                 backgroundColor: '#3B82F620',
+                                 color: '#3B82F6'
+                               }}
+                             >
+                               View
+                             </button>
+                             <button
+                               onClick={() => openLoanPaymentModal(loan)}
+                               className="px-2 py-1 rounded text-xs font-medium"
+                               style={{
+                                 backgroundColor: '#10B98120',
+                                 color: '#10B981'
+                               }}
+                             >
+                               Payment
+                             </button>
+                             <button
+                               onClick={() => handleDeleteLoan(loan)}
+                               className="px-2 py-1 rounded text-xs font-medium hover:opacity-80 transition-opacity"
+                               style={{
+                                 backgroundColor: '#EF444420',
+                                 color: '#EF4444'
+                               }}
+                             >
+                               Delete
+                             </button>
+                           </div>
+                         </td>
+                       </tr>
+                     ))
+                   )
+                 ) : null}
                </tbody>
              </table>
            </div>
@@ -1442,6 +2229,111 @@ const ManagerDashboard = () => {
         }}
       />
 
+      {/* Add Investor Modal */}
+      <AddInvestorModal
+        isOpen={showAddInvestorModal}
+        onClose={closeAddInvestorModal}
+        onSubmit={handleAddInvestor}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* Edit Investor Modal */}
+      <AddInvestorModal
+        isOpen={showEditInvestorModal}
+        onClose={closeEditInvestorModal}
+        onSubmit={handleEditInvestor}
+        investor={selectedInvestor}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* Add Loan Modal */}
+      <AddLoanModal
+        isOpen={showAddLoanModal}
+        onClose={closeAddLoanModal}
+        onSubmit={handleAddLoan}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* View Loan Modal */}
+      <ViewLoanModal
+        isOpen={showViewLoanModal}
+        onClose={closeViewLoanModal}
+        loan={selectedLoan}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* Loan Payment Modal */}
+      <LoanPaymentModal
+        isOpen={showLoanPaymentModal}
+        onClose={closeLoanPaymentModal}
+        onSubmit={handleAddLoanPayment}
+        loan={selectedLoan}
+        colors={{
+          primary: '#3B82F6',
+          success: '#10B981',
+          danger: '#EF4444',
+          text: '#0F172A',
+          lightText: '#64748B',
+          cardBackground: '#FFFFFF',
+          border: '#E2E8F0'
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteConfirmationModal}
+        onConfirm={confirmDelete}
+        title={deleteType === 'loan' ? 'Delete Loan' : deleteType === 'investor' ? 'Delete Investor' : deleteType === 'manager' ? 'Delete Manager' : 'Delete Installment'}
+        message={deleteType === 'loan' 
+          ? 'This will permanently delete the loan and all its payment history. This action cannot be undone.'
+          : deleteType === 'investor'
+          ? 'This will permanently delete the investor and all their data. This action cannot be undone.'
+          : deleteType === 'manager'
+          ? 'This will permanently delete the manager and all their data. This action cannot be undone.'
+          : 'This will permanently delete the installment plan and all its payment history. This action cannot be undone.'
+        }
+        itemName={deleteType === 'loan' 
+          ? `Loan for ${deleteItem?.investorName} - Rs. ${deleteItem?.loanAmount?.toLocaleString()}`
+          : deleteType === 'installment'
+          ? `Installment plan for ${deleteItem?.customerName} - Rs. ${deleteItem?.totalAmount?.toLocaleString()}`
+          : `${deleteItem?.name} (${deleteItem?.email})`
+        }
+        isLoading={isDeleting}
+      />
+
       {/* Portal Dropdown - Outside Table */}
       {(() => {
         console.log('Checking dropdown condition:', showEditDropdown);
@@ -1528,64 +2420,6 @@ const ManagerDashboard = () => {
               </svg>
               Reset Password
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && installmentToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 translate-y-0">
-            {/* Header */}
-            <div className="relative overflow-hidden rounded-t-2xl bg-red-50 flex-shrink-0">
-              <div className="relative p-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex-1 text-center">
-                    <h2 className="text-xl font-bold text-gray-800">Delete Installment</h2>
-                  </div>
-                  <button 
-                    onClick={closeDeleteModal}
-                    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-all duration-200 p-2 rounded-full"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Are you sure?</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  You are about to delete the installment plan for <strong>{installmentToDelete.customerName}</strong>. 
-                  This action cannot be undone.
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 ml-4">
-                <button
-                  onClick={closeDeleteModal}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full font-medium transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDeleteInstallment}
-                  className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-full font-medium transition-colors duration-200"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -1697,6 +2531,25 @@ const ManagerDashboard = () => {
           isOpen={showPDFModal}
           onClose={closePDFModal}
         />
+
+        {/* Update Profit Modal */}
+        {showUpdateProfitModal && selectedInvestorForProfit && (
+          <UpdateProfitModal
+            isOpen={showUpdateProfitModal}
+            onClose={closeUpdateProfitModal}
+            investor={selectedInvestorForProfit}
+            onSuccess={fetchInvestors}
+            colors={{
+              primary: '#3B82F6',
+              success: '#10B981',
+              danger: '#EF4444',
+              text: '#0F172A',
+              lightText: '#64748B',
+              cardBackground: '#FFFFFF',
+              border: '#E2E8F0'
+            }}
+          />
+        )}
       </div>
     );
   };

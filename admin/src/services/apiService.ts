@@ -64,6 +64,10 @@ class ApiService {
     });
   }
 
+  async getProfile() {
+    return await this.request('/api/auth/profile');
+  }
+
   async changePassword(passwordData: any) {
     return await this.request('/api/auth/change-password', {
       method: 'POST',
@@ -144,6 +148,91 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(data)
     });
+  }
+
+  // Investors API calls
+  async getInvestors() {
+    return await this.request('/api/investors');
+  }
+
+  async addInvestor(data: any) {
+    return await this.request('/api/investors', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteInvestor(investorId: string) {
+    return await this.request(`/api/investors/${investorId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async updateInvestor(investorId: string, data: any) {
+    return await this.request(`/api/investors/${investorId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // Investor Dashboard API calls
+  async getInvestorDashboard() {
+    return await this.request('/api/investors/dashboard');
+  }
+
+  async getInvestorProfitHistory(limit: number = 12) {
+    return await this.request(`/api/investors/profit-history?limit=${limit}`);
+  }
+
+  async updateInvestorProfit(investorId: string, profit: number, month?: string) {
+    return await this.request('/api/investors/update-profit', {
+      method: 'POST',
+      body: JSON.stringify({ investorId, profit, month })
+    });
+  }
+
+  // Loans API calls
+  async getLoans() {
+    return await this.request('/api/loans');
+  }
+
+  async getLoansByInvestor(investorId: string) {
+    return await this.request(`/api/loans/investor/${investorId}`);
+  }
+
+  async getLoanById(loanId: string) {
+    return await this.request(`/api/loans/${loanId}`);
+  }
+
+  async addLoan(data: any) {
+    return await this.request('/api/loans', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateLoan(loanId: string, data: any) {
+    return await this.request(`/api/loans/${loanId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteLoan(loanId: string) {
+    return await this.request(`/api/loans/${loanId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async addLoanPayment(loanId: string, paymentData: any) {
+    return await this.request(`/api/loans/${loanId}/payment`, {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
+  async getLoanStats() {
+    return await this.request('/api/loans/stats');
   }
 }
 

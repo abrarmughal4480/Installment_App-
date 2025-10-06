@@ -6,10 +6,10 @@ const router = express.Router();
 
 // Dashboard routes (no authentication required for now)
 router.get('/stats', getDashboardStats);
-router.get('/managers', getManagers);
-router.post('/managers', addManager);
-router.put('/managers/:id', updateManager);
-router.delete('/managers/:id', deleteManager);
+router.get('/managers', authenticateToken, getManagers);
+router.post('/managers', authenticateToken, addManager);
+router.put('/managers/:id', authenticateToken, updateManager);
+router.delete('/managers/:id', authenticateToken, deleteManager);
 router.post('/sample-data', addSampleData);
 
 // Installments routes - requires authentication for role-based filtering

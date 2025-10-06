@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['customer', 'admin', 'manager'],
+    enum: ['customer', 'admin', 'manager', 'investor'],
     default: 'customer'
   },
   tempPassword: {
@@ -39,7 +39,54 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Investor-specific fields
+  investmentAmount: {
+    type: Number,
+    required: function() {
+      return this.type === 'investor';
+    },
+    min: 0
+  },
+  monthlyProfit: {
+    type: Number,
+    required: function() {
+      return this.type === 'investor';
+    },
+    min: 0,
+    default: 0
+  },
+  // Profit history tracking
+  profitHistory: [{
+    month: {
+      type: String, // Format: "YYYY-MM" (e.g., "2024-01")
+      required: true
+    },
+    profit: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // Current month profit (for quick access)
+  currentMonthProfit: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  // Previous month profit (for quick access)
+  previousMonthProfit: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
   lastLogin: {
+    type: Date
+  },
+  previousLogin: {
     type: Date
   },
   createdAt: {
@@ -90,6 +137,72 @@ userSchema.statics.findActiveUsers = function() {
 // Static method to get users by type
 userSchema.statics.findByType = function(type) {
   return this.find({ type, isActive: true });
+};
+
+// Static method to find investors
+userSchema.statics.findInvestors = function() {
+  return this.find({ type: 'investor', isActive: true });
+};
+
+// Static method to find active investors
+userSchema.statics.findActiveInvestors = function() {
+  return this.find({ type: 'investor', isActive: true });
+};
+
+// Method to add monthly profit for investors
+userSchema.methods.addMonthlyProfit = function(profit, month) {
+  if (this.type !== 'investor') {
+    throw new Error('Only investors can have monthly profits');
+  }
+  
+  const monthStr = month || new Date().toISOString().slice(0, 7); // YYYY-MM format
+  
+  // Check if profit for this month already exists
+  const existingProfit = this.profitHistory.find(p => p.month === monthStr);
+  if (existingProfit) {
+    existingProfit.profit = profit;
+  } else {
+    this.profitHistory.push({ month: monthStr, profit });
+  }
+  
+  // Update current and previous month profits
+  this.updateCurrentAndPreviousMonthProfits();
+  
+  // Also update the monthlyProfit field for backward compatibility
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  if (monthStr === currentMonth) {
+    this.monthlyProfit = profit;
+  }
+  
+  return this.save();
+};
+
+// Method to update current and previous month profits
+userSchema.methods.updateCurrentAndPreviousMonthProfits = function() {
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
+  
+  const currentProfit = this.profitHistory.find(p => p.month === currentMonth);
+  const previousProfit = this.profitHistory.find(p => p.month === previousMonth);
+  
+  this.currentMonthProfit = currentProfit ? currentProfit.profit : 0;
+  this.previousMonthProfit = previousProfit ? previousProfit.profit : 0;
+  
+  // Also update monthlyProfit field for backward compatibility
+  this.monthlyProfit = this.currentMonthProfit;
+};
+
+// Method to get profit history for investors
+userSchema.methods.getProfitHistory = function(limit = 12) {
+  if (this.type !== 'investor') {
+    return [];
+  }
+  
+  return this.profitHistory
+    .sort((a, b) => b.month.localeCompare(a.month))
+    .slice(0, limit);
 };
 
 const User = mongoose.model('User', userSchema);

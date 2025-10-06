@@ -5,9 +5,10 @@ import React, { useState } from 'react';
 interface ChangePasswordFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning') => void;
 }
 
-const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCancel }) => {
+const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCancel, showToast }) => {
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -43,6 +44,66 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
     }));
   };
 
+  // Password strength calculation
+  const calculatePasswordStrength = (password: string) => {
+    let score = 0;
+    let requirements = {
+      length: false,
+      lowercase: false,
+      uppercase: false,
+      digits: false,
+      symbols: false,
+      length12: false
+    };
+
+    // Length check (8+ characters)
+    if (password.length >= 8) {
+      score += 1;
+      requirements.length = true;
+    }
+
+    // Length bonus (12+ characters)
+    if (password.length >= 12) {
+      score += 1;
+      requirements.length12 = true;
+    }
+
+    // Lowercase check
+    if (/[a-z]/.test(password)) {
+      score += 1;
+      requirements.lowercase = true;
+    }
+
+    // Uppercase check
+    if (/[A-Z]/.test(password)) {
+      score += 1;
+      requirements.uppercase = true;
+    }
+
+    // Number check
+    if (/\d/.test(password)) {
+      score += 1;
+      requirements.digits = true;
+    }
+
+    // Special character check
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      score += 1;
+      requirements.symbols = true;
+    }
+
+    return { score, requirements };
+  };
+
+  const getStrengthLevel = (score: number) => {
+    if (score <= 1) return { level: 'Very Weak', color: 'bg-red-600', textColor: 'text-red-700' };
+    if (score <= 2) return { level: 'Weak', color: 'bg-red-500', textColor: 'text-red-600' };
+    if (score <= 3) return { level: 'Fair', color: 'bg-orange-500', textColor: 'text-orange-600' };
+    if (score <= 4) return { level: 'Good', color: 'bg-yellow-500', textColor: 'text-yellow-600' };
+    if (score <= 5) return { level: 'Strong', color: 'bg-green-500', textColor: 'text-green-600' };
+    return { level: 'Very Strong', color: 'bg-green-600', textColor: 'text-green-700' };
+  };
+
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
 
@@ -52,8 +113,23 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
 
     if (!formData.newPassword) {
       newErrors.newPassword = 'New password is required';
-    } else if (formData.newPassword.length < 6) {
-      newErrors.newPassword = 'Password must be at least 6 characters';
+    } else {
+      const strength = calculatePasswordStrength(formData.newPassword);
+      
+      // Check if all requirements are met
+      if (!strength.requirements.length) {
+        newErrors.newPassword = 'Password must be at least 8 characters long';
+      } else if (!strength.requirements.lowercase) {
+        newErrors.newPassword = 'Password must contain lowercase letters (a-z)';
+      } else if (!strength.requirements.uppercase) {
+        newErrors.newPassword = 'Password must contain uppercase letters (A-Z)';
+      } else if (!strength.requirements.digits) {
+        newErrors.newPassword = 'Password must contain numbers (0-9)';
+      } else if (!strength.requirements.symbols) {
+        newErrors.newPassword = 'Password must contain special symbols (!@#$%^&*)';
+      } else if (!strength.requirements.length12) {
+        newErrors.newPassword = 'Password must be at least 12 characters for maximum security';
+      }
     }
 
     if (!formData.confirmPassword) {
@@ -74,6 +150,22 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
     e.preventDefault();
     
     if (!validateForm()) {
+      // Show toast for incomplete requirements
+      if (showToast && formData.newPassword) {
+        const strength = calculatePasswordStrength(formData.newPassword);
+        let missingRequirements = [];
+        
+        if (!strength.requirements.length) missingRequirements.push('8+ characters');
+        if (!strength.requirements.lowercase) missingRequirements.push('lowercase letters');
+        if (!strength.requirements.uppercase) missingRequirements.push('uppercase letters');
+        if (!strength.requirements.digits) missingRequirements.push('numbers');
+        if (!strength.requirements.symbols) missingRequirements.push('special symbols');
+        if (!strength.requirements.length12) missingRequirements.push('12+ characters');
+        
+        if (missingRequirements.length > 0) {
+          showToast(`Password must include: ${missingRequirements.join(', ')}`, 'warning');
+        }
+      }
       return;
     }
 
@@ -86,10 +178,10 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <div>
         <label htmlFor="currentPassword" className="block text-sm font-medium text-black mb-1">
-          Current Password
+          Current Password *
         </label>
         <div className="relative">
           <input
@@ -98,6 +190,11 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
             name="currentPassword"
             value={formData.currentPassword}
             onChange={handleInputChange}
+            maxLength={12}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
               errors.currentPassword ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -127,7 +224,7 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
 
       <div>
         <label htmlFor="newPassword" className="block text-sm font-medium text-black mb-1">
-          New Password
+          New Password *
         </label>
         <div className="relative">
           <input
@@ -136,6 +233,11 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
             name="newPassword"
             value={formData.newPassword}
             onChange={handleInputChange}
+            maxLength={12}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
               errors.newPassword ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -161,11 +263,33 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
         {errors.newPassword && (
           <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
         )}
+        
+        {/* Password Strength Meter */}
+        {formData.newPassword && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Password Strength:</span>
+              <span className={`text-sm font-semibold ${getStrengthLevel(calculatePasswordStrength(formData.newPassword).score).textColor}`}>
+                {getStrengthLevel(calculatePasswordStrength(formData.newPassword).score).level}
+              </span>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-500 ${getStrengthLevel(calculatePasswordStrength(formData.newPassword).score).color}`}
+                style={{ 
+                  width: `${(calculatePasswordStrength(formData.newPassword).score / 6) * 100}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-black mb-1">
-          Confirm New Password
+          Confirm New Password *
         </label>
         <div className="relative">
           <input
@@ -174,6 +298,11 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
             name="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleInputChange}
+            maxLength={12}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
               errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
             }`}
@@ -201,18 +330,23 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({ onSubmit, onCan
         )}
       </div>
 
+      {/* Required Fields Note */}
+      <div className="text-center pt-2">
+        <p className="text-sm text-red-600 font-medium">All fields marked with * are required</p>
+      </div>
+
       <div className="flex gap-3 pt-4">
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 px-4 py-2 text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+          className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full font-medium transition-colors duration-200"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+          className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-full font-medium transition-colors duration-200 flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>

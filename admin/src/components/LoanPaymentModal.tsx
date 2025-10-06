@@ -3,21 +3,25 @@ import React, { useState, useEffect } from 'react';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (paymentData: any) => Promise<void>;
-  onMarkUnpaid: () => void;
-  installment: any;
-  isLoading: boolean;
-  isEditMode: boolean;
+  onSubmit: (paymentData: any) => void;
+  loan: any;
+  colors: {
+    primary: string;
+    success: string;
+    danger: string;
+    text: string;
+    lightText: string;
+    cardBackground: string;
+    border: string;
+  };
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  onMarkUnpaid,
-  installment,
-  isLoading,
-  isEditMode
+  loan,
+  colors
 }) => {
   const [formData, setFormData] = useState({
     amount: '',
@@ -25,6 +29,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -42,14 +47,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Reset form when modal opens/closes
   useEffect(() => {
-    if (isOpen && installment) {
+    if (isOpen) {
       setFormData({
-        amount: installment.actualPaidAmount?.toString() || installment.monthlyInstallment?.toString() || '',
-        notes: installment.paymentNotes || ''
+        amount: '',
+        notes: ''
       });
       setErrors({});
     }
-  }, [isOpen, installment]);
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -72,6 +77,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Payment amount must be greater than 0';
+    } else if (parseFloat(formData.amount) > (loan.remainingAmount || 0)) {
+      newErrors.amount = 'Payment amount cannot exceed remaining amount';
     }
 
     setErrors(newErrors);
@@ -85,19 +92,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       return;
     }
 
+    setIsSubmitting(true);
+    
     try {
       const paymentData = {
-        customAmount: parseFloat(formData.amount),
-        paymentNotes: formData.notes.trim()
+        amount: parseFloat(formData.amount),
+        notes: formData.notes.trim()
       };
       
       await onSubmit(paymentData);
+      
+      // Reset form after successful submission
+      setFormData({
+        amount: '',
+        notes: ''
+      });
     } catch (error) {
       console.error('Error submitting payment:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!isOpen || !installment) return null;
+  if (!isOpen || !loan) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 opacity-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
@@ -107,10 +124,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="relative p-4">
             <div className="flex justify-between items-center">
               <div className="flex-1 text-center">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {isEditMode ? 'Edit Payment' : 'Record Payment'}
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">{installment.name}</p>
+                <h2 className="text-xl font-bold text-gray-800">Add Payment</h2>
+                <p className="text-sm text-gray-600 mt-1">{loan.investorName} - Loan ID: {loan.loanId || 'N/A'}</p>
               </div>
               <button 
                 onClick={onClose}
@@ -126,31 +141,25 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
-          {/* Installment Summary */}
+          {/* Loan Summary */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Installment Summary</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Loan Summary</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-600">Monthly Payment</p>
-                <p className="font-medium text-gray-800">Rs. {installment.monthlyInstallment?.toLocaleString() || 'N/A'}</p>
+                <p className="text-gray-600">Total Amount</p>
+                <p className="font-medium text-gray-800">Rs. {loan.totalAmount ? (Math.round(loan.totalAmount) + 1).toLocaleString() : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600">Paid Amount</p>
-                <p className="font-medium text-gray-800">Rs. {installment.actualPaidAmount?.toLocaleString() || '0'}</p>
+                <p className="font-medium text-gray-800">Rs. {loan.paidAmount ? (Math.round(loan.paidAmount) + 1).toLocaleString() : '0'}</p>
               </div>
               <div>
                 <p className="text-gray-600">Remaining</p>
-                <p className="font-medium text-red-600">Rs. {(installment.totalAmount - (installment.actualPaidAmount || 0)).toLocaleString()}</p>
+                <p className="font-medium text-red-600">Rs. {loan.remainingAmount ? (Math.round(loan.remainingAmount) + 1).toLocaleString() : 'N/A'}</p>
               </div>
               <div>
-                <p className="text-gray-600">Status</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  installment.status === 'paid' ? 'bg-green-100 text-green-800' :
-                  installment.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {installment.status?.charAt(0).toUpperCase() + installment.status?.slice(1)}
-                </span>
+                <p className="text-gray-600">Monthly Payment</p>
+                <p className="font-medium text-gray-800">Rs. {loan.monthlyPayment ? (Math.round(loan.monthlyPayment) + 1).toLocaleString() : 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -168,6 +177,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 onChange={handleInputChange}
                 placeholder="Enter payment amount"
                 min="0"
+                max={loan.remainingAmount || undefined}
                 step="0.01"
                 autoComplete="off"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-black ${
@@ -177,6 +187,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               {errors.amount && (
                 <p className="text-red-500 text-xs mt-1">{errors.amount}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">
+                Maximum: Rs. {loan.remainingAmount ? (Math.round(loan.remainingAmount) + 1).toLocaleString() : 'N/A'}
+              </p>
             </div>
 
             {/* Payment Notes */}
@@ -198,6 +211,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </p>
             </div>
 
+            {/* Quick Amount Buttons */}
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">
+                Quick Amounts
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, amount: (Math.round(loan.monthlyPayment || 0) + 1).toString() }))}
+                  className="px-3 py-2 text-sm text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                >
+                  Monthly Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, amount: (Math.round(loan.remainingAmount || 0) + 1).toString() }))}
+                  className="px-3 py-2 text-sm text-black bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                >
+                  Full Payment
+                </button>
+              </div>
+            </div>
+
             {/* Required Fields Note */}
             <div className="text-center pt-2">
               <p className="text-sm text-red-600 font-medium">Fields marked with * are required</p>
@@ -214,10 +250,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="flex-1 px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-full font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: colors.success }}
               >
-                {isLoading ? 'Processing...' : (isEditMode ? 'Update Payment' : 'Record Payment')}
+                {isSubmitting ? 'Processing...' : 'Add Payment'}
               </button>
             </div>
           </form>

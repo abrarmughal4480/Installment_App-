@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import installmentRoutes from './routes/installments.js';
 import dashboardRoutes from './routes/dashboard.js';
+import investorRoutes from './routes/investors.js';
+import loanRoutes from './routes/loans.js';
 import { cleanupExpiredOTP } from './controllers/authController.js';
 import dotenv from 'dotenv';
 
@@ -73,6 +75,8 @@ app.get('/ping', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/installments', installmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/investors', investorRoutes);
+app.use('/api/loans', loanRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -156,7 +156,7 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  {['Customer', 'Amount', 'Status', 'Due Date', 'Created By', 'Actions'].map((header, index) => (
+                  {['Customer', 'Amount', 'Status', 'Due Date', 'Added By', 'Actions'].map((header, index) => (
                     <th key={index} className="text-left py-3 px-4">
                       <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
                     </th>
@@ -319,7 +319,7 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
                   Due Date
                 </th>
                 <th className="text-left py-3 px-4 font-semibold" style={{ color: colors.text }}>
-                  Created By
+                  Added By
                 </th>
                 <th className="text-left py-3 px-4 font-semibold" style={{ color: colors.text }}>
                   Actions
@@ -441,7 +441,7 @@ export default function InstallmentsSection({ colors, formatCurrency }: Installm
               {/* Manager Info */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
-                  Created By Manager
+                  Added By Manager
                 </h4>
                 <div 
                   className="p-4 rounded-lg"
