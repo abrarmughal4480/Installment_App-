@@ -10,7 +10,9 @@ import { ToastProvider } from '../contexts/ToastContext';
 
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, Dimensions, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import TokenService from '../services/tokenService';
 import { apiService } from '../services/apiService';
 
@@ -18,10 +20,24 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   const [appReady, setAppReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<string | null>(null);
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+
+  // Update screen dimensions when navigation bar visibility changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenData(window);
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  // Calculate available height dynamically
+  const availableHeight = screenData.height - insets.top - insets.bottom;
 
   useEffect(() => {
     const prepare = async () => {
@@ -70,7 +86,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <ToastProvider>
-          <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+          <View style={{ flex: 1, height: availableHeight }} onLayout={onLayoutRootView}>
 
           {isLoggedIn ? (
             userType === 'admin' ? <Redirect href="/adminDashboard" /> : <Redirect href="/installments" />

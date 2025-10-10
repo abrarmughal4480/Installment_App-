@@ -71,13 +71,31 @@ export default function LandingPage() {
     try {
       const token = await TokenService.getToken();
       if (token) {
-        
+        console.log('🔍 Checking existing authentication...');
         const response = await apiService.getProfile();
         if (response.success && response.user) {
+          console.log('✅ User already authenticated, redirecting to dashboard');
+          router.replace('/adminDashboard');
+        } else {
+          console.log('❌ Invalid token, clearing data');
+          await clearAuthData();
         }
+      } else {
+        console.log('ℹ️ No token found, staying on login page');
       }
     } catch (error) {
-      
+      console.log('❌ Auth check error:', error);
+      await clearAuthData();
+    }
+  };
+
+  const clearAuthData = async () => {
+    try {
+      await TokenService.removeToken();
+      await apiService.logout();
+      console.log('🧹 Auth data cleared');
+    } catch (error) {
+      console.log('Error clearing auth data:', error);
     }
   };
 
@@ -217,9 +235,12 @@ export default function LandingPage() {
     setIsLoading(true);
     
     try {
+      console.log('👤 Customer login attempt:', customerId.trim());
       const response = await apiService.getCustomerInstallments(customerId.trim());
+      console.log('📡 Customer login response:', response);
       
       if (response.success) {
+        console.log('✅ Customer login successful');
         
         try {
           await AsyncStorage.setItem('customerId', customerId.trim());
@@ -390,14 +411,21 @@ export default function LandingPage() {
         
         try {
           setIsLoading(true);
+          console.log('📧 Checking email exists:', email);
+          
           const response = await apiService.checkEmailExists(email);
+          console.log('📡 Email check response:', response);
           
           if (response.success) {
+            console.log('✅ Email verified, moving to password step');
             setCurrentStep(1);
+            showSuccess('Email verified! Please enter your password.');
           } else {
-            showError(response.message || 'No admin account found with this email.');
+            console.log('❌ Email not found:', response.message);
+            showError(response.message || 'No account found with this email. Please contact support.');
           }
         } catch (error) {
+          console.log('💥 Email check error:', error);
           showError('Failed to verify email. Please check your internet connection and try again.');
         } finally {
           setIsLoading(false);
@@ -409,23 +437,56 @@ export default function LandingPage() {
         
         try {
           setIsLoading(true);
-          const response = await apiService.login({ 
+          console.log('🔐 Attempting login with:', { email, password: '***' });
+          
+          // Try admin login first
+          let response = await apiService.login({ 
             email, 
             password, 
-            type: 'admin' 
+            type: 'admin'
           });
           
+          console.log('📡 Admin login response:', response);
+          
+          // If admin login fails, try manager login
+          if (!response.success) {
+            console.log('🔄 Trying manager login...');
+            response = await apiService.login({ 
+              email, 
+              password, 
+              type: 'manager'
+            });
+            console.log('📡 Manager login response:', response);
+          }
+          
+          // If manager login also fails, try investor login
+          if (!response.success) {
+            console.log('🔄 Trying investor login...');
+            response = await apiService.login({ 
+              email, 
+              password, 
+              type: 'investor'
+            });
+            console.log('📡 Investor login response:', response);
+          }
+          
           if (response.success) {
+            console.log('✅ Login successful');
             
             if (response.token) {
+              console.log('🔑 Token received, saving...');
               await TokenService.setToken(response.token);
+              console.log('💾 Token saved successfully');
             }
             
+            console.log('🚀 Redirecting to admin dashboard...');
             router.replace('/adminDashboard');
           } else {
-            showError(response.message || 'Invalid admin credentials. Please check your email and password.');
+            console.log('❌ Login failed:', response.message);
+            showError(response.message || 'Invalid credentials. Please check your email and password.');
           }
         } catch (error) {
+          console.log('💥 Login error:', error);
           showError('An error occurred during login. Please try again.');
         } finally {
           setIsLoading(false);
@@ -543,10 +604,10 @@ export default function LandingPage() {
 
 
   
-  // Swipe functionality commented out for future use
+  // Swipe functionality enabled
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => false, // () => true,
-    onMoveShouldSetPanResponder: () => false, // (evt, gestureState) => { return Math.abs(gestureState.dy) > 3; },
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (evt, gestureState) => { return Math.abs(gestureState.dy) > 3; },
     onPanResponderGrant: () => {
       
     },
@@ -554,40 +615,40 @@ export default function LandingPage() {
       
     },
     onPanResponderRelease: (evt, gestureState) => {
-      // const { dy } = gestureState;
+      const { dy } = gestureState;
       
-      // // Swipe up to admin mode
-      // if (dy < -20 && !isAdminMode && !isSignUpMode) {
-      //   setIsAdminMode(true);
-      //   setCustomerId('');
-      //   setEmail('');
-      //   setPassword('');
-      //   setName('');
-      //   setConfirmPassword('');
-      //   setIsEmailFocused(false);
-      //   setIsPasswordFocused(false);
-      //   setIsCustomerIdFocused(false);
-      //   setIsNameFocused(false);
-      //   setIsConfirmPasswordFocused(false);
-      //   setCurrentStep(0);
-      // }
+      // Swipe up to admin mode
+      if (dy < -20 && !isAdminMode && !isSignUpMode) {
+        setIsAdminMode(true);
+        setCustomerId('');
+        setEmail('');
+        setPassword('');
+        setName('');
+        setConfirmPassword('');
+        setIsEmailFocused(false);
+        setIsPasswordFocused(false);
+        setIsCustomerIdFocused(false);
+        setIsNameFocused(false);
+        setIsConfirmPasswordFocused(false);
+        setCurrentStep(0);
+      }
       
-      // // Swipe down to customer mode
-      // else if (dy > 20 && (isAdminMode || isSignUpMode)) {
-      //   setIsAdminMode(false);
-      //   setIsSignUpMode(false);
-      //   setCustomerId('');
-      //   setEmail('');
-      //   setPassword('');
-      //   setName('');
-      //   setConfirmPassword('');
-      //   setIsEmailFocused(false);
-      //   setIsPasswordFocused(false);
-      //   setIsCustomerIdFocused(false);
-      //   setIsNameFocused(false);
-      //   setIsConfirmPasswordFocused(false);
-      //   setCurrentStep(0);
-      // }
+      // Swipe down to customer mode
+      else if (dy > 20 && (isAdminMode || isSignUpMode)) {
+        setIsAdminMode(false);
+        setIsSignUpMode(false);
+        setCustomerId('');
+        setEmail('');
+        setPassword('');
+        setName('');
+        setConfirmPassword('');
+        setIsEmailFocused(false);
+        setIsPasswordFocused(false);
+        setIsCustomerIdFocused(false);
+        setIsNameFocused(false);
+        setIsConfirmPasswordFocused(false);
+        setCurrentStep(0);
+      }
     },
   });
 
@@ -610,11 +671,21 @@ export default function LandingPage() {
               <View style={styles.headerContent}>
                 <View>
                   <Text style={styles.modernHeaderTitle}>
-                    {isAdminMode ? 'Admin Portal' : isSignUpMode ? 'Create Account' : 'Installment Tracker'}
+                    {isAdminMode ? 'Staff Portal' : isSignUpMode ? 'Create Account' : 'Installment Tracker'}
                   </Text>
                   <Text style={styles.modernHeaderSubtitle}>
-                    {isAdminMode ? 'Manage your business' : isSignUpMode ? 'Get started with your account' : 'Manage your payments with ease'}
+                    {isAdminMode ? 'Login with any role to access dashboard' : isSignUpMode ? 'Get started with your account' : 'Manage your payments with ease'}
                   </Text>
+                  <View style={styles.swipeIndicator}>
+                    <Ionicons 
+                      name={isAdminMode || isSignUpMode ? "chevron-down" : "chevron-up"} 
+                      size={12} 
+                      color="rgba(255, 255, 255, 0.6)" 
+                    />
+                    <Text style={styles.swipeHint}>
+                      {isAdminMode || isSignUpMode ? 'Swipe down for customer login' : 'Swipe up for admin login'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.headerIcon}>
                   <Ionicons 
@@ -658,7 +729,7 @@ export default function LandingPage() {
                     : isSignUpMode && currentStep === 2
                       ? 'Create Password'
                       : isAdminMode 
-                        ? 'Admin Login' 
+                        ? 'Staff Login' 
                         : isSignUpMode 
                           ? 'Sign Up' 
                           : 'Customer Login'
@@ -671,7 +742,7 @@ export default function LandingPage() {
                   : isSignUpMode && currentStep === 2
                     ? 'Create a strong password to secure your account'
                     : isAdminMode 
-                      ? 'Access manager dashboard to manage the system'
+                      ? 'Login with any role (admin, manager, etc.) to access dashboard'
                       : isSignUpMode 
                         ? 'Create your account to get started'
                         : 'Access your account to manage installments'

@@ -63,10 +63,10 @@ export const checkEmailExists = async (req, res) => {
       });
     }
 
-    // Check if admin user exists
+    // Check if staff user exists (admin, manager, or investor)
     const user = await User.findOne({ 
       email: email.toLowerCase(),
-      type: 'admin',
+      type: { $in: ['admin', 'manager', 'investor'] },
       isActive: true
     });
 
@@ -78,7 +78,7 @@ export const checkEmailExists = async (req, res) => {
     } else {
       res.status(404).json({
         success: false,
-        message: 'Sorry, we couldn\'t find an admin account with this email. Please check your email or contact support.'
+        message: 'Sorry, we couldn\'t find a staff account with this email. Please check your email or contact support.'
       });
     }
 

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
+import TokenService from '../services/tokenService';
 
 export default function InstallmentDetails() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function InstallmentDetails() {
   const [installmentPlan, setInstallmentPlan] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<any>(null);
   
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -82,8 +84,20 @@ export default function InstallmentDetails() {
   ];
 
   useEffect(() => {
+    loadUserData();
     loadInstallmentDetails();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      const response = await apiService.getProfile();
+      if (response.success && response.user) {
+        setUser(response.user);
+      }
+    } catch (error) {
+      console.log('Failed to load user data');
+    }
+  };
 
   useEffect(() => {
     
@@ -421,14 +435,16 @@ export default function InstallmentDetails() {
                       </Text>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      style={[styles.payButton, { backgroundColor: colors.primary }]}
-                      onPress={() => openPaymentModal(installment)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="card" size={16} color="#FFFFFF" />
-                      <Text style={styles.payButtonText}>Pay</Text>
-                    </TouchableOpacity>
+                    user?.type === 'admin' && (
+                      <TouchableOpacity
+                        style={[styles.payButton, { backgroundColor: colors.primary }]}
+                        onPress={() => openPaymentModal(installment)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="card" size={16} color="#FFFFFF" />
+                        <Text style={styles.payButtonText}>Pay</Text>
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
               </View>
@@ -686,14 +702,15 @@ export default function InstallmentDetails() {
         </ScrollView>
       </Animated.View>
 
-      {/* Payment Modal */}
-      <Modal
-        visible={showPaymentModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closePaymentModal}
-      >
-        <View style={styles.modalOverlay}>
+      {/* Payment Modal - Only for admin users */}
+      {showPaymentModal && user?.type === 'admin' && (
+        <Modal
+          visible={showPaymentModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={closePaymentModal}
+        >
+          <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]}>
             {/* Modal Header - Fixed */}
             <View style={styles.modalHeader}>
@@ -880,7 +897,8 @@ export default function InstallmentDetails() {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }

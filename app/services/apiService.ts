@@ -1,12 +1,12 @@
 import TokenService from './tokenService';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.hgdjlive.com';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.43.120:8080';
 
 interface LoginCredentials {
   customerId?: string;
   email?: string;
   password?: string;
-  type: 'customer' | 'admin';
+  type: 'customer' | 'admin' | 'manager' | 'investor';
 }
 
 interface User {
@@ -15,7 +15,7 @@ interface User {
   email: string;
   phone: string;
   address: string;
-  type: 'customer' | 'admin';
+  type: 'customer' | 'admin' | 'manager' | 'investor';
   customerId?: string;
   isActive: boolean;
   createdAt: string;
@@ -95,6 +95,12 @@ class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
+    console.log('📡 Making API request:', {
+      url,
+      method: options.method || 'GET',
+      hasAuth: !!(options.headers as any)?.['Authorization']
+    });
+    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -105,6 +111,13 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+      
+      console.log('📡 API Response:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -118,9 +131,19 @@ class ApiService {
         return errorData as T;
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('📡 API Success:', {
+        url,
+        success: data.success,
+        dataLength: Array.isArray(data.installments) ? data.installments.length : 'N/A'
+      });
+      
+      return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('❌ API request failed:', {
+        url,
+        error: (error as Error).message
+      });
       // Return a structured error response instead of throwing
       return {
         success: false,
@@ -257,7 +280,19 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    // For admin users, always use the admin endpoint to get all installments
+    // For other users, use customer-specific endpoint
     const endpoint = isAdmin ? `/api/installments` : `/api/installments/customer/${customerId}`;
+    const fullUrl = `${API_BASE_URL}${endpoint}`;
+    
+    console.log('🌐 API Call:', {
+      endpoint,
+      fullUrl,
+      isAdmin,
+      customerId,
+      hasToken: !!token
+    });
+    
     return this.request(endpoint, { headers });
   }
 
@@ -336,6 +371,279 @@ class ApiService {
       headers: {
         'Authorization': `Bearer ${token || ''}`,
       },
+    });
+  }
+
+  // Get all managers (admin only)
+  async getManagers(): Promise<{
+    success: boolean;
+    managers?: any[];
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/dashboard/managers', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  // Update manager (admin only)
+  async updateManager(managerId: string, data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    phone?: string;
+    editType: 'name' | 'email' | 'password';
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/dashboard/managers/${managerId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Delete manager (admin only)
+  async deleteManager(managerId: string): Promise<{
+    success: boolean;
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/dashboard/managers/${managerId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  // Add manager (admin only)
+  async addManager(data: {
+    name: string;
+    email: string;
+    phone?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/dashboard/managers', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Investor methods
+  async getInvestors(): Promise<{
+    success: boolean;
+    data?: any[];
+    count?: number;
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  async addInvestor(data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    investmentAmount: number;
+    monthlyProfit?: number;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInvestor(investorId: string, data: any): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/investors/${investorId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInvestor(investorId: string): Promise<{
+    success: boolean;
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/investors/${investorId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  async distributeProfits(data: {
+    totalProfit: number;
+    totalExpenses: number;
+    netProfit: number;
+    distribution: Array<{
+      _id: string;
+      name: string;
+      investmentAmount: number;
+      profitAmount: number;
+      ratio: number;
+    }>;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      totalProfit: number;
+      totalExpenses: number;
+      netProfit: number;
+      distributionResults: Array<{
+        investorId: string;
+        investorName: string;
+        profitAmount: number;
+        status: 'success' | 'failed';
+        error?: string;
+      }>;
+      month: string;
+    };
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors/distribute-profits', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Loan methods
+  async getLoans(): Promise<{
+    success: boolean;
+    data?: any[];
+    count?: number;
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/loans', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  async addLoan(data: {
+    investorName: string;
+    loanAmount: number;
+    interestRate: number;
+    duration: number;
+    notes?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/loans', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLoan(loanId: string, data: {
+    loanAmount?: number;
+    interestRate?: number;
+    duration?: number;
+    status?: string;
+    notes?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/loans/${loanId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLoan(loanId: string): Promise<{
+    success: boolean;
+    message?: string;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/loans/${loanId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
+    });
+  }
+
+  async addLoanPayment(loanId: string, data: {
+    amount: number;
+    paymentMethod: string;
+    notes?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/loans/${loanId}/payment`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
   }
 }
