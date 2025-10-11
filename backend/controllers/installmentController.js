@@ -433,7 +433,8 @@ export const payInstallment = async (req, res) => {
       installmentNumber, 
       paymentMethod = 'cash', 
       notes = '',
-      customAmount = null // Allow custom payment amount
+      customAmount = null, // Allow custom payment amount
+      dueDate = null // Allow custom due date
     } = req.body;
     
     const installmentPlan = await Installment.findById(installmentId);
@@ -481,6 +482,21 @@ export const payInstallment = async (req, res) => {
     installment.paymentMethod = paymentMethod;
     installment.notes = notes;
     installment.paidBy = req.user.userId;
+    
+    // Update due date if provided
+    if (dueDate) {
+      try {
+        const newDueDate = new Date(dueDate);
+        if (!isNaN(newDueDate.getTime())) {
+          installment.dueDate = newDueDate;
+          console.log(`📅 Updated due date for installment #${installmentNumber} to: ${newDueDate.toISOString()}`);
+        } else {
+          console.log(`⚠️ Invalid due date format provided: ${dueDate}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error parsing due date: ${dueDate}`, error);
+      }
+    }
     
     // Store the actual paid amount (custom or original)
     const actualPaidAmount = customAmount !== null ? parseFloat(customAmount) : installment.amount;
@@ -534,6 +550,7 @@ export const payInstallment = async (req, res) => {
         originalAmount: installment.amount,
         actualPaidAmount: installment.actualPaidAmount,
         paidDate: installment.paidDate,
+        dueDate: installment.dueDate,
         status: installment.status,
         paymentMethod: installment.paymentMethod,
         notes: installment.notes
@@ -557,7 +574,8 @@ export const updatePayment = async (req, res) => {
       installmentNumber, 
       paymentMethod = 'cash', 
       notes = '',
-      customAmount = null // Allow custom payment amount
+      customAmount = null, // Allow custom payment amount
+      dueDate = null // Allow custom due date
     } = req.body;
     
     const installmentPlan = await Installment.findById(installmentId);
@@ -606,6 +624,21 @@ export const updatePayment = async (req, res) => {
     installment.paymentMethod = paymentMethod;
     installment.notes = notes;
     installment.paidBy = req.user.userId;
+    
+    // Update due date if provided
+    if (dueDate) {
+      try {
+        const newDueDate = new Date(dueDate);
+        if (!isNaN(newDueDate.getTime())) {
+          installment.dueDate = newDueDate;
+          console.log(`📅 Updated due date for installment #${installmentNumber} to: ${newDueDate.toISOString()}`);
+        } else {
+          console.log(`⚠️ Invalid due date format provided: ${dueDate}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error parsing due date: ${dueDate}`, error);
+      }
+    }
     
     // Store the new actual paid amount (custom or original)
     const newPaidAmount = customAmount !== null ? parseFloat(customAmount) : installment.amount;
@@ -659,6 +692,7 @@ export const updatePayment = async (req, res) => {
         originalAmount: installment.amount,
         actualPaidAmount: installment.actualPaidAmount,
         paidDate: installment.paidDate,
+        dueDate: installment.dueDate,
         status: installment.status,
         paymentMethod: installment.paymentMethod,
         notes: installment.notes

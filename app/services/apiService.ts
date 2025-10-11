@@ -319,6 +319,7 @@ class ApiService {
     paymentMethod: string;
     notes?: string;
     customAmount?: number;
+    dueDate?: string;
   }): Promise<{ 
     success: boolean; 
     message: string; 
@@ -332,6 +333,34 @@ class ApiService {
   }> {
     const token = await TokenService.getToken();
     return this.request(`/api/installments/${installmentId}/pay`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`,
+      },
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  async updatePayment(installmentId: string, paymentData: {
+    installmentNumber: number;
+    paymentMethod: string;
+    notes?: string;
+    customAmount?: number;
+    dueDate?: string;
+  }): Promise<{ 
+    success: boolean; 
+    message: string; 
+    installment?: any;
+    distribution?: {
+      difference: number;
+      distributedTo: number;
+      amountPerInstallment: number;
+      message: string;
+    };
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/installments/${installmentId}/update-payment`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -644,6 +673,22 @@ class ApiService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
+    });
+  }
+
+  async getInvestorDashboard(): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      investor: any;
+    };
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors/dashboard', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+      },
     });
   }
 }

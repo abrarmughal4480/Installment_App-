@@ -31,6 +31,8 @@ import LoansSection from '../components/LoansSection';
 // @ts-ignore  
 import BottomNavBar from '../components/BottomNavBar';
 import ConfirmationModal from '../components/ConfirmationModal';
+// @ts-ignore
+import InvestorDashboard from '../components/InvestorDashboard';
 
 
 
@@ -766,7 +768,7 @@ export default function AdminDashboard() {
                 ${isPaid ? 'Paid' : 'Not Paid'}
               </td>
               <td style="padding: 12px 10px; font-size: 14px; color: #000; border-right: 1px solid #ddd;">${i}</td>
-              <td style="padding: 12px 10px; font-size: 14px; color: #000; border-right: 1px solid #ddd;">${formatCurrency(installment.amount)}</td>
+              <td style="padding: 12px 10px; font-size: 14px; color: #000; border-right: 1px solid #ddd;">${isPaid ? formatCurrency(installment.amount) : 'Rs. 0'}</td>
               <td style="padding: 12px 10px; font-size: 14px; color: #000;">${due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</td>
             </tr>
           `;
@@ -1297,16 +1299,17 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {/* Content Area - Toggle between Installments, Managers, Investors, and Loans */}
+        {/* Content Area - Show regular content for admin/manager users */}
         {currentView === 'installments' ? (
           <>
             {/* Modern Filter Pills */}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.modernFilterScrollView}
-              contentContainerStyle={styles.modernFilterContainer}
-            >
+            {(
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.modernFilterScrollView}
+                contentContainerStyle={styles.modernFilterContainer}
+              >
           {(['all', 'active', 'overdue', 'completed'] as const).map(seg => {
             const isActive = filter === seg;
             const count = filterCounts[seg];
@@ -1341,8 +1344,10 @@ export default function AdminDashboard() {
             );
           })}
         </ScrollView>
+            )}
 
         {/* Installment List */}
+        {(
         <View ref={installmentSectionRef} style={styles.installmentSection} onLayout={handleInstallmentHeaderLayout}>
           <View style={styles.sectionHeader}>
             {!showSearchBar ? (
@@ -1400,7 +1405,7 @@ export default function AdminDashboard() {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="search" size={18} color="#FFFFFF" />
+                  <Ionicons name="search" size={18} color="#FFFFFF" />
               </TouchableOpacity>
               {/* Only show Add button for admin users */}
               {user?.type === 'admin' && (
@@ -1577,6 +1582,7 @@ export default function AdminDashboard() {
             ))
           )}
         </View>
+        )}
           </>
         ) : currentView === 'managers' ? (
           /* Managers Section - Only for Admin */
@@ -1704,137 +1710,8 @@ export default function AdminDashboard() {
               </View>
             </View>
             
-            {/* Navigation Options - Only for Admin */}
-            {user?.type === 'admin' && (
-              <View style={styles.navigationSection}>
-                <Text style={[styles.navigationTitle, { color: colors.text }]}>Navigation</Text>
-                <View style={styles.navigationOptions}>
-            <TouchableOpacity 
-              style={[
-                styles.navigationButton, 
-                { 
-                  backgroundColor: currentView === 'installments' ? colors.primary : colors.background,
-                  borderColor: colors.primary,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={() => {
-                setCurrentView('installments');
-                setShowProfileModal(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="receipt" 
-                size={20} 
-                color={currentView === 'installments' ? '#FFFFFF' : colors.primary} 
-              />
-              <Text style={[
-                styles.navigationButtonText, 
-                { color: currentView === 'installments' ? '#FFFFFF' : colors.primary }
-              ]}>
-                Installments
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[
-                styles.navigationButton, 
-                { 
-                  backgroundColor: currentView === 'managers' ? colors.primary : colors.background,
-                  borderColor: colors.primary,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={() => {
-                setCurrentView('managers');
-                setShowProfileModal(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="people" 
-                size={20} 
-                color={currentView === 'managers' ? '#FFFFFF' : colors.primary} 
-              />
-              <Text style={[
-                styles.navigationButtonText, 
-                { color: currentView === 'managers' ? '#FFFFFF' : colors.primary }
-              ]}>
-                Managers
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[
-                styles.navigationButton, 
-                { 
-                  backgroundColor: currentView === 'investors' ? colors.primary : colors.background,
-                  borderColor: colors.primary,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={() => {
-                setCurrentView('investors');
-                setShowProfileModal(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="trending-up" 
-                size={20} 
-                color={currentView === 'investors' ? '#FFFFFF' : colors.primary} 
-              />
-              <Text style={[
-                styles.navigationButtonText, 
-                { color: currentView === 'investors' ? '#FFFFFF' : colors.primary }
-              ]}>
-                Investors
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[
-                styles.navigationButton, 
-                { 
-                  backgroundColor: currentView === 'loans' ? colors.primary : colors.background,
-                  borderColor: colors.primary,
-                  borderWidth: 1
-                }
-              ]}
-              onPress={() => {
-                setCurrentView('loans');
-                setShowProfileModal(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name="wallet" 
-                size={20} 
-                color={currentView === 'loans' ? '#FFFFFF' : colors.primary} 
-              />
-              <Text style={[
-                styles.navigationButtonText, 
-                { color: currentView === 'loans' ? '#FFFFFF' : colors.primary }
-              ]}>
-                Loans
-              </Text>
-            </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
             {/* Action Buttons */}
             <View style={styles.profileActions}>
-              <TouchableOpacity 
-                style={[styles.actionButton, { backgroundColor: colors.background }]}
-                onPress={() => setShowProfileModal(false)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="settings" size={20} color={colors.primary} />
-                <Text style={[styles.actionButtonText, { color: colors.text }]}>Settings</Text>
-              </TouchableOpacity>
-              
               <TouchableOpacity 
                 style={[styles.actionButton, { backgroundColor: colors.danger }]}
                 onPress={handleLogout}
@@ -2219,6 +2096,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: 20,
@@ -2226,9 +2104,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -2236,11 +2114,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    flexShrink: 0,
   },
   searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -2248,6 +2127,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    flexShrink: 0,
   },
   searchInputWrapper: {
     flexDirection: 'row',
@@ -2286,10 +2166,10 @@ const styles = StyleSheet.create({
   installmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 12,
     paddingBottom: 8,
-    gap: 4,
+    gap: 8,
   },
   installmentInfo: {
     flex: 1,
@@ -2298,7 +2178,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 6,
+    gap: 8,
+    flexShrink: 0,
   },
   actionButtonsContainer: {
     flexDirection: 'row',
@@ -2309,9 +2190,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 0,
+    paddingVertical: 4,
+    flexShrink: 0,
   },
   cardActionButton: {
     width: 28,
@@ -2319,11 +2201,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    flexShrink: 0,
   },
   editButton: {
     width: 32,
@@ -2626,48 +2509,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    gap: 8,
   },
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-
-  // Navigation Section Styles
-  navigationSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  navigationTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: -0.2,
-  },
-  navigationOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  navigationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    gap: 6,
-    minWidth: '45%',
-  },
-  navigationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
   },
 
   // Placeholder Section Styles

@@ -9,7 +9,8 @@ import {
   TextInput,
   StatusBar,
   Animated,
-  Keyboard
+  Keyboard,
+  Modal
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import TokenService from '../services/tokenService';
@@ -37,6 +38,7 @@ export default function CreateInstallment() {
     email: '',
     phone: '',
     address: '',
+    managerId: '',
     productName: '',
     productDescription: '',
     totalAmount: '',
@@ -49,11 +51,18 @@ export default function CreateInstallment() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [managers, setManagers] = useState<any[]>([]);
+  const [showManagerDropdown, setShowManagerDropdown] = useState(false);
+  const [selectedManager, setSelectedManager] = useState<any>(null);
+  const [managerSearchQuery, setManagerSearchQuery] = useState('');
+  const [isManagerSearchFocused, setIsManagerSearchFocused] = useState(false);
 
   
   const dot1Opacity = useRef(new Animated.Value(0.3)).current;
   const dot2Opacity = useRef(new Animated.Value(0.3)).current;
   const dot3Opacity = useRef(new Animated.Value(0.3)).current;
+  const modalScale = useRef(new Animated.Value(0)).current;
+  const modalOpacity = useRef(new Animated.Value(0)).current;
 
 
   
@@ -126,8 +135,64 @@ export default function CreateInstallment() {
     }
   }, [isLoading]);
 
+  const handleManagerModalClose = () => {
+    // Animate modal close
+    Animated.parallel([
+      Animated.timing(modalScale, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(modalOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowManagerDropdown(false);
+      setManagerSearchQuery('');
+      setIsManagerSearchFocused(false);
+    });
+  };
+
+  const handleManagerModalOpen = () => {
+    setShowManagerDropdown(true);
+    // Animate modal open
+    Animated.parallel([
+      Animated.spring(modalScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.timing(modalOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const loadManagers = async () => {
+    try {
+      const response = await apiService.getManagers();
+      if (response.success) {
+        setManagers(response.managers || []);
+      }
+    } catch (error) {
+      console.log('Error loading managers:', error);
+    }
+  };
+
+  // Filter managers based on search query
+  const filteredManagers = managers.filter(manager => 
+    manager.name.toLowerCase().includes(managerSearchQuery.toLowerCase()) ||
+    manager.email.toLowerCase().includes(managerSearchQuery.toLowerCase())
+  );
+
   useEffect(() => {
     loadUserData();
+    loadManagers();
     
     
     if (params.editMode === 'true') {
@@ -147,24 +212,36 @@ export default function CreateInstallment() {
     }
   }, [user]);
 
+  // Set selected manager when managers are loaded and we have a managerId
+  useEffect(() => {
+    if (managers.length > 0 && formData.managerId) {
+      const manager = managers.find(m => m._id === formData.managerId);
+      if (manager) {
+        setSelectedManager(manager);
+      }
+    }
+  }, [managers, formData.managerId]);
+
   
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      
+      // Handle keyboard show if needed
     });
     
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      
-      setTimeout(() => {
-        
-      }, 100);
+      // Clear search when keyboard hides
+      if (showManagerDropdown) {
+        setTimeout(() => {
+          setIsManagerSearchFocused(false);
+        }, 100);
+      }
     });
 
     return () => {
       keyboardDidShowListener?.remove();
       keyboardDidHideListener?.remove();
     };
-  }, []);
+  }, [showManagerDropdown]);
 
   
   useFocusEffect(
@@ -206,6 +283,7 @@ export default function CreateInstallment() {
       email: params.customerEmail as string || '',
       phone: params.customerPhone as string || '',
       address: params.customerAddress as string || '',
+      managerId: params.managerId as string || '',
       productName: params.productName as string || '',
       productDescription: params.productDescription as string || '',
       totalAmount: formatNumberWithCommas(params.remainingAmount as string || ''),
@@ -288,6 +366,7 @@ export default function CreateInstallment() {
         email: formData.email,
         phone: formData.phone,
         address: formData.address || '',
+        managerId: formData.managerId || undefined,
         productName: formData.productName,
         productDescription: formData.productDescription || '',
         totalAmount: Number(removeCommas(formData.totalAmount)),
@@ -545,8 +624,194 @@ export default function CreateInstallment() {
                     numberOfLines={2}
                   />
                 </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Manager</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.modernDropdownButton,
+                      { 
+                        borderColor: selectedManager ? colors.primary : colors.border,
+                        backgroundColor: selectedManager ? colors.primary + '10' : colors.inputBackground,
+                      }
+                    ]}
+                    onPress={handleManagerModalOpen}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.dropdownContent}>
+                      <View style={styles.dropdownTextContainer}>
+                        <Text style={[
+                          styles.modernDropdownText,
+                          { 
+                            color: selectedManager ? colors.text : colors.lightText 
+                          }
+                        ]}>
+                          {selectedManager ? selectedManager.name : 'Select Manager'}
+                        </Text>
+                        {selectedManager && (
+                          <Text style={[styles.modernDropdownSubtext, { color: colors.lightText }]}>
+                            {selectedManager.email}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name="chevron-down" 
+                      size={18} 
+                      color={selectedManager ? colors.primary : colors.lightText} 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
+
+            {/* Manager Selection Modal */}
+            <Modal
+              visible={showManagerDropdown}
+              transparent
+              animationType="fade"
+              onRequestClose={handleManagerModalClose}
+            >
+              <Animated.View style={[styles.modalOverlay, { opacity: modalOpacity }]}>
+                <Animated.View style={[
+                  styles.managerModalContainer, 
+                  { 
+                    backgroundColor: colors.cardBackground,
+                    transform: [{ scale: modalScale }]
+                  }
+                ]}>
+                  {/* Header */}
+                  <View style={[styles.modalHeader, { backgroundColor: colors.primary + '10' }]}>
+                    <View style={styles.headerText}>
+                      <Text style={[styles.modalTitle, { color: colors.text }]}>
+                        Select Manager
+                      </Text>
+                      <Text style={[styles.modalSubtitle, { color: colors.lightText }]}>
+                        Choose a manager for this customer
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleManagerModalClose}
+                      style={[styles.closeButton, { backgroundColor: colors.border }]}
+                    >
+                      <Ionicons name="close" size={18} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Search Bar */}
+                  <View style={styles.searchContainer}>
+                    <View style={[
+                      styles.searchInputWrapper, 
+                      { 
+                        borderColor: isManagerSearchFocused ? colors.primary : colors.border,
+                        borderWidth: isManagerSearchFocused ? 2 : 1,
+                      }
+                    ]}>
+                      <Ionicons name="search" size={18} color={colors.lightText} style={styles.searchIcon} />
+                      <TextInput
+                        style={[styles.searchInput, { color: colors.text }]}
+                        value={managerSearchQuery}
+                        onChangeText={setManagerSearchQuery}
+                        placeholder="Search managers..."
+                        placeholderTextColor={colors.lightText}
+                        onFocus={() => setIsManagerSearchFocused(true)}
+                        onBlur={() => setIsManagerSearchFocused(false)}
+                      />
+                      {managerSearchQuery.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => setManagerSearchQuery('')}
+                          style={styles.clearSearchButton}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close-circle" size={16} color={colors.lightText} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Manager List */}
+                  <ScrollView style={styles.managerList} showsVerticalScrollIndicator={false}>
+                    {filteredManagers.length === 0 ? (
+                      <View style={styles.emptyState}>
+                        <Text style={[styles.emptyStateText, { color: colors.lightText }]}>
+                          {managerSearchQuery ? 'No managers found' : 'No managers available'}
+                        </Text>
+                        {managerSearchQuery && (
+                          <Text style={[styles.emptyStateSubtext, { color: colors.lightText }]}>
+                            Try adjusting your search terms
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      filteredManagers.map((manager, index) => (
+                        <TouchableOpacity
+                          key={manager._id}
+                          style={[
+                            styles.managerItem,
+                            { 
+                              backgroundColor: selectedManager?._id === manager._id ? colors.primary + '15' : 'transparent',
+                              borderBottomWidth: index === filteredManagers.length - 1 ? 0 : 1,
+                              borderBottomColor: colors.border,
+                            }
+                          ]}
+                          onPress={() => {
+                            setSelectedManager(manager);
+                            setFormData(prev => ({ ...prev, managerId: manager._id }));
+                            handleManagerModalClose();
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.managerItemContent}>
+                            <View style={styles.managerInfo}>
+                              <Text style={[
+                                styles.managerName,
+                                { 
+                                  color: selectedManager?._id === manager._id ? colors.primary : colors.text 
+                                }
+                              ]}>
+                                {manager.name}
+                              </Text>
+                              <Text style={[
+                                styles.managerEmail,
+                                { 
+                                  color: selectedManager?._id === manager._id ? colors.primary : colors.lightText 
+                                }
+                              ]}>
+                                {manager.email}
+                              </Text>
+                            </View>
+                            {selectedManager?._id === manager._id && (
+                              <View style={[styles.selectedIndicator, { backgroundColor: colors.primary }]}>
+                                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                              </View>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+
+                  {/* Clear Selection Button */}
+                  {selectedManager && (
+                    <View style={styles.clearSelectionContainer}>
+                      <TouchableOpacity
+                        style={[styles.clearSelectionButton, { borderColor: colors.danger }]}
+                        onPress={() => {
+                          setSelectedManager(null);
+                          setFormData(prev => ({ ...prev, managerId: '' }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close-circle" size={16} color={colors.danger} />
+                        <Text style={[styles.clearSelectionText, { color: colors.danger }]}>
+                          Clear Selection
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </Animated.View>
+              </Animated.View>
+            </Modal>
 
             {/* Product Information */}
             <View style={[styles.sectionCard, { backgroundColor: colors.cardBackground }]}>
@@ -988,7 +1253,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   sectionTitle: {
     fontSize: 18,
@@ -1021,6 +1286,218 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     fontWeight: '500',
+    color: '#0F172A', // Explicit text color
+  },
+  // Modern Dropdown Button Styles
+  modernDropdownButton: {
+    borderWidth: 2,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 56,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dropdownTextContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  modernDropdownText: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  modernDropdownSubtext: {
+    fontSize: 14,
+    fontWeight: '400',
+    marginTop: 2,
+    opacity: 0.7,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  managerModalContainer: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 20,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 60,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+    marginRight: 2,
+  },
+
+  // Search Styles
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchInputWrapper: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 25,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+
+  // Manager List Styles
+  managerList: {
+    maxHeight: 300,
+  },
+  managerItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  managerItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  managerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  managerInfo: {
+    flex: 1,
+  },
+  managerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  managerEmail: {
+    fontSize: 14,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  selectedIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Empty State Styles
+  emptyState: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+
+  // Clear Selection Styles
+  clearSelectionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  clearSelectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+  },
+  clearSelectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   inputWithUnit: {
     flexDirection: 'column',
@@ -1033,6 +1510,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     fontWeight: '500',
+    color: '#0F172A', // Explicit text color
   },
   unitSelector: {
     flexDirection: 'row',

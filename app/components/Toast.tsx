@@ -183,7 +183,7 @@ const Toast: React.FC<ToastProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 80,
+    bottom: Platform.OS === 'ios' ? 50 : 30,
     left: 16,
     right: 16,
     borderRadius: 16,

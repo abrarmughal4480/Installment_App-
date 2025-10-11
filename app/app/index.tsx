@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LandingPage() {
   const [customerId, setCustomerId] = useState('');
@@ -46,12 +47,12 @@ export default function LandingPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
-  
+  const insets = useSafeAreaInsets();
   
   const otpRefs = useRef<(TextInput | null)[]>([]);
-  
-  
   const headerAnimation = useRef(new Animated.Value(-100)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardAnimation = useRef(new Animated.Value(0)).current;
 
   
   useEffect(() => {
@@ -65,6 +66,30 @@ export default function LandingPage() {
   useEffect(() => {
     loadSavedCustomerId();
     checkAuthStatus();
+    
+    // Keyboard event listeners
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      Animated.timing(keyboardAnimation, {
+        toValue: e.endCoordinates.height,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      Animated.timing(keyboardAnimation, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
   }, []);
 
   const checkAuthStatus = async () => {
@@ -75,7 +100,12 @@ export default function LandingPage() {
         const response = await apiService.getProfile();
         if (response.success && response.user) {
           console.log('✅ User already authenticated, redirecting to dashboard');
-          router.replace('/adminDashboard');
+          // Redirect based on user role
+          if (response.user.type === 'investor') {
+            router.replace('/investorDashboard');
+          } else {
+            router.replace('/adminDashboard');
+          }
         } else {
           console.log('❌ Invalid token, clearing data');
           await clearAuthData();
@@ -390,7 +420,12 @@ export default function LandingPage() {
             
             showSuccess('Account created successfully!');
             setTimeout(() => {
-              router.replace('/adminDashboard');
+              // Redirect based on user role
+              if (response.user?.type === 'investor') {
+                router.replace('/investorDashboard');
+              } else {
+                router.replace('/adminDashboard');
+              }
             }, 2000);
           } else {
             if (response.remainingAttempts !== undefined) {
@@ -479,8 +514,13 @@ export default function LandingPage() {
               console.log('💾 Token saved successfully');
             }
             
-            console.log('🚀 Redirecting to admin dashboard...');
-            router.replace('/adminDashboard');
+            console.log('🚀 Redirecting to dashboard...');
+            // Redirect based on user role
+            if (response.user?.type === 'investor') {
+              router.replace('/investorDashboard');
+            } else {
+              router.replace('/adminDashboard');
+            }
           } else {
             console.log('❌ Login failed:', response.message);
             showError(response.message || 'Invalid credentials. Please check your email and password.');
@@ -699,13 +739,15 @@ export default function LandingPage() {
           </View>
         </Animated.View>
 
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.content}>
+        <Animated.View style={{ flex: 1, paddingBottom: keyboardAnimation }}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
+          <View style={[styles.content, { paddingTop: Math.max(insets.top, 20) }]}>
           {/* Input Section */}
           <View style={[styles.inputCard, { backgroundColor: colors.cardBackground }]}>
             <View style={styles.inputHeader}>
@@ -1066,7 +1108,7 @@ export default function LandingPage() {
                         placeholderTextColor={colors.lightText}
                         secureTextEntry={!showPassword}
                         returnKeyType="done"
-                        onSubmitEditing={handleLogin}
+                        onSubmitEditing={nextStep}
                         onFocus={() => setIsPasswordFocused(true)}
                         onBlur={() => setIsPasswordFocused(false)}
                       />
@@ -1239,7 +1281,7 @@ export default function LandingPage() {
               </View>
             )}
 
-            {/* Help Text */}
+            {/* Help Text
             {isAdminMode && (
               <TouchableOpacity 
                 style={styles.helpTextContainer}
@@ -1249,7 +1291,7 @@ export default function LandingPage() {
                   Don&apos;t have account? <Text style={styles.linkText}>Sign up as admin</Text>
                 </Text>
               </TouchableOpacity>
-            )}
+            )} */}
 
 
           </View>
@@ -1257,6 +1299,7 @@ export default function LandingPage() {
 
           </View>
         </ScrollView>
+        </Animated.View>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -1270,12 +1313,11 @@ export default function LandingPage() {
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingBottom: 20,
     justifyContent: 'center',
   },
 

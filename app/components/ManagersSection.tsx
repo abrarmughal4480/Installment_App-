@@ -112,8 +112,20 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
       }
 
       console.log('🔄 Loading managers...');
-      const response = await apiService.getManagers();
-      console.log('📡 Managers API response:', response);
+      const startTime = Date.now();
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000); // 10 second timeout
+      });
+      
+      const response = await Promise.race([
+        apiService.getManagers(),
+        timeoutPromise
+      ]) as any;
+      
+      const loadTime = Date.now() - startTime;
+      console.log(`📡 Managers API response (${loadTime}ms):`, response);
 
       if (response.success) {
         console.log('✅ Managers loaded successfully:', response.managers?.length || 0, 'managers');
@@ -127,7 +139,11 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
     } catch (error) {
       console.log('❌ Manager load error:', error);
       if (showLoader) {
-        showError('Failed to load managers. Please try again.');
+        if ((error as any).message === 'Request timeout') {
+          showError('Request timeout. Please check your connection and try again.');
+        } else {
+          showError('Failed to load managers. Please try again.');
+        }
       }
     } finally {
       if (showLoader) {

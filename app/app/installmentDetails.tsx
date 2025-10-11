@@ -36,6 +36,7 @@ export default function InstallmentDetails() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentDueDate, setPaymentDueDate] = useState('');
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [distributionInfo, setDistributionInfo] = useState<{
     difference: number;
@@ -44,6 +45,15 @@ export default function InstallmentDetails() {
     isExcess: boolean;
     message: string;
   } | null>(null);
+
+  // Edit payment modal state
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('cash');
+  const [editPaymentNotes, setEditPaymentNotes] = useState('');
+  const [editPaymentDueDate, setEditPaymentDueDate] = useState('');
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -165,6 +175,26 @@ export default function InstallmentDetails() {
     setPaymentAmount(installment.amount.toString());
     setPaymentMethod('cash');
     setPaymentNotes('');
+    // Format due date to YYYY-MM-DD format
+    let dueDate = '';
+    if (installment.dueDate) {
+      console.log('Payment Modal - Original due date:', installment.dueDate);
+      try {
+        const date = new Date(installment.dueDate);
+        if (!isNaN(date.getTime())) {
+          dueDate = date.toISOString().split('T')[0];
+          console.log('Payment Modal - Formatted due date:', dueDate);
+        } else {
+          // If it's already in YYYY-MM-DD format, use it directly
+          dueDate = installment.dueDate;
+          console.log('Payment Modal - Using original due date:', dueDate);
+        }
+      } catch (error) {
+        console.log('Payment Modal - Date formatting error:', error);
+        dueDate = installment.dueDate;
+      }
+    }
+    setPaymentDueDate(dueDate);
     setDistributionInfo(null);
     setShowPaymentModal(true);
   };
@@ -175,8 +205,47 @@ export default function InstallmentDetails() {
     setPaymentAmount('');
     setPaymentMethod('cash');
     setPaymentNotes('');
+    setPaymentDueDate('');
     setDistributionInfo(null);
     setIsRecordingPayment(false);
+  };
+
+  const openEditPaymentModal = (installment: any) => {
+    setEditingPayment(installment);
+    setEditPaymentAmount((installment.actualPaidAmount || installment.amount).toString());
+    setEditPaymentMethod(installment.paymentMethod || 'cash');
+    setEditPaymentNotes(installment.paymentNotes || '');
+    // Format due date to YYYY-MM-DD format
+    let dueDate = '';
+    if (installment.dueDate) {
+      console.log('Edit Payment Modal - Original due date:', installment.dueDate);
+      try {
+        const date = new Date(installment.dueDate);
+        if (!isNaN(date.getTime())) {
+          dueDate = date.toISOString().split('T')[0];
+          console.log('Edit Payment Modal - Formatted due date:', dueDate);
+        } else {
+          // If it's already in YYYY-MM-DD format, use it directly
+          dueDate = installment.dueDate;
+          console.log('Edit Payment Modal - Using original due date:', dueDate);
+        }
+      } catch (error) {
+        console.log('Edit Payment Modal - Date formatting error:', error);
+        dueDate = installment.dueDate;
+      }
+    }
+    setEditPaymentDueDate(dueDate);
+    setShowEditPaymentModal(true);
+  };
+
+  const closeEditPaymentModal = () => {
+    setShowEditPaymentModal(false);
+    setEditingPayment(null);
+    setEditPaymentAmount('');
+    setEditPaymentMethod('cash');
+    setEditPaymentNotes('');
+    setEditPaymentDueDate('');
+    setIsUpdatingPayment(false);
   };
 
   const calculateDistribution = (amount: number) => {
@@ -231,6 +300,18 @@ export default function InstallmentDetails() {
       return;
     }
 
+    if (!paymentDueDate) {
+      showError('Please enter due date');
+      return;
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(paymentDueDate)) {
+      showError('Please enter due date in YYYY-MM-DD format');
+      return;
+    }
+
     try {
       setIsRecordingPayment(true);
       const response = await apiService.payInstallment(
@@ -239,7 +320,8 @@ export default function InstallmentDetails() {
           installmentNumber: selectedInstallment.installmentNumber,
           paymentMethod: paymentMethod,
           notes: paymentNotes,
-          customAmount: amount
+          customAmount: amount,
+          dueDate: paymentDueDate
         }
       );
 
@@ -261,6 +343,57 @@ export default function InstallmentDetails() {
       showError('Failed to record payment. Please try again.');
     } finally {
       setIsRecordingPayment(false);
+    }
+  };
+
+  const handleEditPayment = async () => {
+    if (!editingPayment || !editPaymentAmount) {
+      showError('Please enter payment amount');
+      return;
+    }
+
+    const amount = parseFloat(editPaymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showError('Please enter a valid amount');
+      return;
+    }
+
+    if (!editPaymentDueDate) {
+      showError('Please enter due date');
+      return;
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(editPaymentDueDate)) {
+      showError('Please enter due date in YYYY-MM-DD format');
+      return;
+    }
+
+    try {
+      setIsUpdatingPayment(true);
+      const response = await apiService.updatePayment(
+        params.installmentId as string,
+        {
+          installmentNumber: editingPayment.installmentNumber,
+          paymentMethod: editPaymentMethod,
+          notes: editPaymentNotes,
+          customAmount: amount,
+          dueDate: editPaymentDueDate
+        }
+      );
+
+      if (response.success) {
+        showSuccess(`Payment updated successfully to ${formatCurrency(amount)} via ${paymentMethods.find(pm => pm.id === editPaymentMethod)?.name}`);
+        closeEditPaymentModal();
+        loadInstallmentDetails(); 
+      } else {
+        showError(response.message || 'Failed to update payment');
+      }
+    } catch (error) {
+      showError('Failed to update payment. Please try again.');
+    } finally {
+      setIsUpdatingPayment(false);
     }
   };
 
@@ -426,13 +559,24 @@ export default function InstallmentDetails() {
                     })()}
                   </Text>
                   {installment.status === 'paid' ? (
-                    <View style={[
-                      styles.paymentStatusBadge, 
-                      { backgroundColor: getStatusColor(installment.status) + '20' }
-                    ]}>
-                      <Text style={[styles.paymentStatusText, { color: getStatusColor(installment.status) }]}>
-                        {getStatusText(installment.status)}
-                      </Text>
+                    <View style={styles.paidInstallmentActions}>
+                      <View style={[
+                        styles.paymentStatusBadge, 
+                        { backgroundColor: getStatusColor(installment.status) + '20' }
+                      ]}>
+                        <Text style={[styles.paymentStatusText, { color: getStatusColor(installment.status) }]}>
+                          {getStatusText(installment.status)}
+                        </Text>
+                      </View>
+                      {user?.type === 'admin' && (
+                        <TouchableOpacity
+                          style={[styles.editButton, { backgroundColor: colors.warning }]}
+                          onPress={() => openEditPaymentModal(installment)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="create" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   ) : (
                     user?.type === 'admin' && (
@@ -845,6 +989,28 @@ export default function InstallmentDetails() {
                   </View>
                 </View>
 
+                {/* Due Date */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="calendar" size={18} color={colors.primary} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Due Date *</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      borderColor: colors.border,
+                      color: colors.text,
+                      backgroundColor: colors.background
+                    }]}
+                    value={paymentDueDate}
+                    onChangeText={setPaymentDueDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.lightText}
+                  />
+                  <Text style={[styles.inputHint, { color: colors.lightText }]}>
+                    Enter the due date for this installment in YYYY-MM-DD format.
+                  </Text>
+                </View>
+
                 {/* Payment Notes */}
                 <View style={styles.inputGroup}>
                   <View style={styles.inputLabelRow}>
@@ -889,6 +1055,202 @@ export default function InstallmentDetails() {
                       <>
                         <Ionicons name="checkmark" size={20} color="#FFFFFF" />
                         <Text style={styles.recordPaymentButtonText}>Record Payment</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+        </Modal>
+      )}
+
+      {/* Edit Payment Modal - Only for admin users */}
+      {showEditPaymentModal && user?.type === 'admin' && (
+        <Modal
+          visible={showEditPaymentModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={closeEditPaymentModal}
+        >
+          <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]}>
+            {/* Modal Header - Fixed */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <Ionicons name="create" size={24} color={colors.warning} />
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Edit Payment
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeEditPaymentModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={colors.lightText} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable Content */}
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {editingPayment && (
+                <View style={[styles.installmentInfo, { backgroundColor: colors.warning + '10' }]}>
+                  <View style={styles.installmentInfoHeader}>
+                    <Ionicons name="receipt" size={20} color={colors.warning} />
+                    <Text style={[styles.installmentInfoTitle, { color: colors.warning }]}>
+                      Payment Details
+                    </Text>
+                  </View>
+                  <View style={styles.installmentInfoRow}>
+                    <Text style={[styles.installmentInfoLabel, { color: colors.text }]}>Installment:</Text>
+                    <Text style={[styles.installmentInfoValue, { color: colors.text }]}>
+                      #{editingPayment.installmentNumber}
+                    </Text>
+                  </View>
+                  <View style={styles.installmentInfoRow}>
+                    <Text style={[styles.installmentInfoLabel, { color: colors.lightText }]}>Paid Date:</Text>
+                    <Text style={[styles.installmentInfoValue, { color: colors.lightText }]}>
+                      {formatDate(editingPayment.paidDate)}
+                    </Text>
+                  </View>
+                  <View style={styles.installmentInfoRow}>
+                    <Text style={[styles.installmentInfoLabel, { color: colors.lightText }]}>Current Amount:</Text>
+                    <Text style={[styles.installmentInfoValue, { color: colors.success, fontWeight: '700' }]}>
+                      {formatCurrency(editingPayment.actualPaidAmount || editingPayment.amount)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.modalContent}>
+                {/* Payment Amount */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="cash" size={18} color={colors.warning} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Payment Amount *</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      borderColor: colors.border,
+                      color: colors.text,
+                      backgroundColor: colors.background
+                    }]}
+                    value={editPaymentAmount}
+                    onChangeText={setEditPaymentAmount}
+                    placeholder="Enter amount"
+                    placeholderTextColor={colors.lightText}
+                    keyboardType="numeric"
+                  />
+                  <Text style={[styles.inputHint, { color: colors.lightText }]}>
+                    Update the payment amount for this installment.
+                  </Text>
+                </View>
+
+                {/* Payment Method */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="card" size={18} color={colors.warning} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Payment Method *</Text>
+                  </View>
+                  <View style={styles.paymentMethodGrid}>
+                    {paymentMethods.map((method) => (
+                      <TouchableOpacity
+                        key={method.id}
+                        style={[
+                          styles.paymentMethodOption,
+                          { 
+                            backgroundColor: editPaymentMethod === method.id ? colors.warning + '20' : colors.background,
+                            borderColor: editPaymentMethod === method.id ? colors.warning : colors.border
+                          }
+                        ]}
+                        onPress={() => setEditPaymentMethod(method.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons 
+                          name={method.icon as any} 
+                          size={20} 
+                          color={editPaymentMethod === method.id ? colors.warning : colors.lightText} 
+                        />
+                        <Text style={[
+                          styles.paymentMethodText,
+                          { color: editPaymentMethod === method.id ? colors.warning : colors.text }
+                        ]}>
+                          {method.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Due Date */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="calendar" size={18} color={colors.warning} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Due Date *</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      borderColor: colors.border,
+                      color: colors.text,
+                      backgroundColor: colors.background
+                    }]}
+                    value={editPaymentDueDate}
+                    onChangeText={setEditPaymentDueDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.lightText}
+                  />
+                  <Text style={[styles.inputHint, { color: colors.lightText }]}>
+                    Enter the due date for this installment in YYYY-MM-DD format.
+                  </Text>
+                </View>
+
+                {/* Payment Notes */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="document-text" size={18} color={colors.warning} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Notes (Optional)</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea, { 
+                      borderColor: colors.border,
+                      color: colors.text,
+                      backgroundColor: colors.background
+                    }]}
+                    value={editPaymentNotes}
+                    onChangeText={setEditPaymentNotes}
+                    placeholder="Add any notes about this payment"
+                    placeholderTextColor={colors.lightText}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+
+                {/* Update Payment Button - Inside scrollable content */}
+                <View style={styles.recordPaymentContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.recordPaymentButton, 
+                      { 
+                        backgroundColor: isUpdatingPayment ? colors.lightText : colors.warning,
+                        opacity: isUpdatingPayment ? 0.7 : 1
+                      }
+                    ]}
+                    onPress={handleEditPayment}
+                    activeOpacity={0.8}
+                    disabled={isUpdatingPayment}
+                  >
+                    {isUpdatingPayment ? (
+                      <>
+                        <Ionicons name="hourglass" size={20} color="#FFFFFF" />
+                        <Text style={styles.recordPaymentButtonText}>Updating...</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                        <Text style={styles.recordPaymentButtonText}>Update Payment</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -1158,6 +1520,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  paidInstallmentActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
 
   

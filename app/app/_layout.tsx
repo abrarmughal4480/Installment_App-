@@ -26,6 +26,8 @@ export default function RootLayout() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<string | null>(null);
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Update screen dimensions when navigation bar visibility changes
   useEffect(() => {
@@ -49,6 +51,9 @@ export default function RootLayout() {
             if (response.success && response.user) {
               setIsLoggedIn(true);
               setUserType(response.user.type);
+              
+              // Load role-specific data
+              await loadRoleSpecificData(response.user.type);
             } else {
               await TokenService.removeToken();
               setIsLoggedIn(false);
@@ -69,18 +74,38 @@ export default function RootLayout() {
         setUserType(null);
       } finally {
         setAppReady(true);
+        setDataLoaded(true);
+        // Add a small delay to ensure smooth transition
+        setTimeout(() => {
+          setIsRedirecting(true);
+        }, 100);
       }
     };
     prepare();
   }, []);
 
+  const loadRoleSpecificData = async (userType: string) => {
+    try {
+      if (userType === 'investor') {
+        // Load investor dashboard data
+        await apiService.getInvestorDashboard();
+      } else if (userType === 'admin' || userType === 'manager') {
+        // Load admin/manager dashboard data
+        await apiService.getInstallments('', true);
+      }
+    } catch (error) {
+      console.log('Error loading role-specific data:', error);
+      // Continue anyway - don't block the app
+    }
+  };
+
   const onLayoutRootView = useCallback(async () => {
-    if (appReady) {
+    if (appReady && isRedirecting && dataLoaded) {
       await SplashScreen.hideAsync();
     }
-  }, [appReady]);
+  }, [appReady, isRedirecting, dataLoaded]);
 
-  if (!appReady) return null;
+  if (!appReady || !isRedirecting || !dataLoaded) return null;
 
   return (
     <SafeAreaProvider>
@@ -89,14 +114,18 @@ export default function RootLayout() {
           <View style={{ flex: 1, height: availableHeight }} onLayout={onLayoutRootView}>
 
           {isLoggedIn ? (
-            userType === 'admin' ? <Redirect href="/adminDashboard" /> : <Redirect href="/installments" />
+            userType === 'admin' ? <Redirect href="/adminDashboard" /> : 
+            userType === 'manager' ? <Redirect href="/adminDashboard" /> :
+            userType === 'investor' ? <Redirect href="/investorDashboard" /> :
+            <Redirect href="/installments" />
           ) : <Redirect href="/" />}
 
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" options={{ title: 'Landing Page', headerShown: false }} />
             <Stack.Screen name="installments" options={{ title: 'My Installments', headerShown: false }} />
             <Stack.Screen name="paymentHistory" options={{ title: 'Payment History', headerShown: false }} />
-            <Stack.Screen name="adminDashboard" options={{ title: 'Manager Dashboard', headerShown: false }} />
+            <Stack.Screen name="adminDashboard" options={{ title: 'Admin Dashboard', headerShown: false }} />
+            <Stack.Screen name="investorDashboard" options={{ title: 'Investor Dashboard', headerShown: false }} />
             <Stack.Screen name="createInstallment" options={{ title: 'Create Installment', headerShown: false }} />
             <Stack.Screen name="installmentDetails" options={{ title: 'Installment Details', headerShown: false }} />
           </Stack>

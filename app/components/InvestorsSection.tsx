@@ -11,10 +11,13 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
 import AddInvestorModal from './AddInvestorModal';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface Investor {
   _id: string;
@@ -97,6 +100,19 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
     iconColor: '',
     onConfirm: () => {},
   });
+
+  // Investor details modal state
+  const [showInvestorDetailsModal, setShowInvestorDetailsModal] = useState(false);
+  const [selectedInvestorDetails, setSelectedInvestorDetails] = useState<Investor | null>(null);
+  
+  // Drag functionality for investor details modal
+  const [isDetailsDragging, setIsDetailsDragging] = useState(false);
+  const [detailsDragValue, setDetailsDragValue] = useState(0);
+  const [detailsLastTap, setDetailsLastTap] = useState(0);
+  const detailsDragTranslateY = useRef(new Animated.Value(0)).current;
+  const detailsDragOpacity = useRef(new Animated.Value(1)).current;
+  const detailsModalSlideY = useRef(new Animated.Value(200)).current;
+  const detailsModalOpacity = useRef(new Animated.Value(0)).current;
   
   // Shimmer animation
   const shimmerOpacity = useRef(new Animated.Value(0.3)).current;
@@ -125,6 +141,39 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
       return () => shimmerAnimation.stop();
     }
   }, [isLoading]);
+
+  // Reset drag values when modal closes
+  useEffect(() => {
+    if (!showInvestorDetailsModal) {
+      detailsDragTranslateY.setValue(0);
+      detailsDragOpacity.setValue(1);
+      detailsModalSlideY.setValue(200);
+      detailsModalOpacity.setValue(0);
+      setIsDetailsDragging(false);
+      setDetailsDragValue(0);
+      setDetailsLastTap(0);
+    }
+  }, [showInvestorDetailsModal]);
+
+  // Animate modal when it opens
+  useEffect(() => {
+    if (showInvestorDetailsModal) {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(detailsModalSlideY, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(detailsModalOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 10);
+    }
+  }, [showInvestorDetailsModal]);
 
   const loadInvestors = async (showLoader = true) => {
     try {
@@ -355,6 +404,324 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
     });
   };
 
+  const handleShareInvestor = async (investor: Investor) => {
+    try {
+      showInfo('Generating PDF...');
+      
+      const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString()}`;
+      const formatDate = (date?: string) => {
+        if (date) {
+          return new Date(date).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          });
+        }
+        return 'N/A';
+      };
+
+      const generateHTML = () => {
+        return `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              * {
+                box-sizing: border-box;
+                color-scheme: light !important;
+                forced-color-adjust: none !important;
+              }
+              body {
+                font-family: Arial, sans-serif;
+                color: #000;
+                background: #fff;
+                margin: 0;
+                padding: 0;
+              }
+              .sheet {
+                width: 794px;
+                min-width: 794px;
+                padding: 25px 30px 30px 30px;
+                margin: 0 auto;
+              }
+              .header {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #000;
+              }
+              .logo-section {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+              }
+              .logo-text {
+                font-size: 22px;
+                font-weight: bold;
+                color: #000;
+                line-height: 1.2;
+                letter-spacing: 1px;
+              }
+              .logo-subtitle {
+                font-size: 11px;
+                color: #666;
+                margin-top: 3px;
+                letter-spacing: 0.5px;
+              }
+              .statement-title {
+                text-align: center;
+                margin: 25px 0;
+              }
+              .statement-title h1 {
+                font-size: 28px;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 8px;
+                letter-spacing: 1px;
+              }
+              .investor-name {
+                font-size: 32px;
+                font-weight: 900;
+                color: #000;
+                text-align: center;
+                margin-bottom: 25px;
+                letter-spacing: 0.5px;
+              }
+              .contract-details {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+                margin-bottom: 30px;
+                padding: 20px;
+                background: #fafafa;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+              }
+              .contract-info h3 {
+                font-size: 16px;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .contract-item {
+                margin-bottom: 6px;
+                font-size: 14px;
+                color: #000;
+              }
+              .investment-box {
+                background: #e8f5e8;
+                border: 2px solid #4CAF50;
+                border-radius: 8px;
+                padding: 18px;
+                text-align: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-top: 10px;
+              }
+              .investment-label {
+                font-size: 14px;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 4px;
+              }
+              .investment-amount {
+                font-size: 22px;
+                font-weight: 900;
+                color: #000;
+              }
+              .separator {
+                border-top: 2px solid #000;
+                margin: 25px 0;
+              }
+              .footer {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 35px;
+                margin-top: 30px;
+                padding-top: 15px;
+              }
+              .instructions {
+                text-align: right;
+              }
+              .instructions-title {
+                font-size: 14px;
+                font-weight: bold;
+                color: #4CAF50;
+                margin-bottom: 8px;
+              }
+              .instructions-text {
+                font-size: 12px;
+                color: #000;
+                line-height: 1.5;
+                direction: rtl;
+                text-align: right;
+              }
+              .thank-you-section {
+                text-align: left;
+                position: relative;
+              }
+              .thank-you-graphic {
+                width: 120px;
+                height: 120px;
+                background: #e8f5e8;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                border: 3px solid #4CAF50;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              }
+              .thank-you-text {
+                font-size: 16px;
+                font-weight: bold;
+                color: #000;
+                font-style: italic;
+                margin-bottom: 4px;
+              }
+              .thank-you-urdu {
+                font-size: 14px;
+                font-weight: bold;
+                color: #000;
+                font-style: italic;
+              }
+              
+              /* Monthly Closing Profit Styles */
+              .closing-month-section {
+                margin: 30px 0;
+              }
+              .closing-month-title {
+                font-size: 20px;
+                font-weight: bold;
+                color: #000;
+                text-align: center;
+                margin-bottom: 20px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .monthly-profit-box {
+                background: #e8f5e8;
+                border: 2px solid #4CAF50;
+                border-radius: 8px;
+                padding: 18px;
+                text-align: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-top: 10px;
+                width: 100%;
+                box-sizing: border-box;
+              }
+              .profit-label {
+                font-size: 14px;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 4px;
+              }
+              .profit-amount {
+                font-size: 22px;
+                font-weight: 900;
+                color: #000;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="sheet">
+              <div class="header">
+                <div class="logo-section">
+                  <div>
+                    <div class="logo-text">APNA BUSINESS</div>
+                    <div class="logo-subtitle">INNOVATE. SUSTAIN. PROSPER.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="statement-title">
+                <h1>INVESTOR STATEMENT</h1>
+              </div>
+
+              <div class="investor-name">
+                ${investor.name || 'Investor Name'}
+              </div>
+
+              <div class="contract-details">
+                <div class="contract-info">
+                  <h3>Investor Details</h3>
+                  <div class="contract-item">Email: ${investor.email || 'N/A'}</div>
+                  <div class="contract-item">Phone: ${investor.phone || 'N/A'}</div>
+                  <div class="contract-item">Type: ${investor.type || 'Investor'}</div>
+                </div>
+
+                <div class="contract-info">
+                  <div class="contract-item">Join Date: ${formatDate(investor.createdAt)}</div>
+                  <div class="investment-box">
+                    <div class="investment-label">Investment Amount:</div>
+                    <div class="investment-amount">${formatCurrency(investor.investmentAmount || 0)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="separator"></div>
+
+
+              <!-- Monthly Closing Profit -->
+              <div class="closing-month-section">
+                <h2 class="closing-month-title">Monthly Closing</h2>
+                <div class="monthly-profit-box">
+                  <div class="profit-label">This Month Profit:</div>
+                  <div class="profit-amount">${formatCurrency(investor.monthlyProfit || 0)}</div>
+                </div>
+              </div>
+
+              <div class="footer">
+                <div class="thank-you-section">
+                  <div class="thank-you-graphic">
+                    <div class="thank-you-text">THANKYOU</div>
+                    <div class="thank-you-urdu">شکریہ</div>
+                  </div>
+                </div>
+
+                <div class="instructions">
+                  <div class="instructions-title">ESSENTIAL INFORMATION</div>
+                  <div class="instructions-text">
+                    یہ رسید آپ کی سرمایہ کاری کی مکمل تفصیلات فراہم کرتی ہے۔ آپ کی سرمایہ کاری کی تفصیلات اور منافع کی تقسیم کی تاریخوں کے ساتھ۔ براہ کرم اپنے اکاؤنٹ کی حالت کو باقاعدگی سے چیک کرتے رہیں
+                  </div>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+      };
+
+      const html = generateHTML();
+      const fileName = `Investor_${investor.name?.replace(/[^a-zA-Z0-9]/g, '_')}_${investor._id}.pdf`;
+      
+      const { uri } = await Print.printToFileAsync({
+        html: html,
+        base64: false,
+      });
+      
+      // Share the PDF
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Investor Statement'
+        });
+        showSuccess('PDF generated and ready to share!');
+      } else {
+        showError('Sharing not available on this device');
+      }
+      
+    } catch (error) {
+      console.log('PDF generation error:', error);
+      showError('Failed to generate PDF. Please try again.');
+    }
+  };
+
   const calculateDistribution = (profit: string, expenses: string) => {
     const totalProfit = parseFloat(profit) || 0;
     const totalExpenses = parseFloat(expenses) || 0;
@@ -440,6 +807,91 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
     } catch (error) {
       console.error('Profit distribution error:', error);
       showError('Failed to distribute profits. Please try again.');
+    }
+  };
+
+  const handleInvestorDetails = (investor: Investor) => {
+    setSelectedInvestorDetails(investor);
+    setShowInvestorDetailsModal(true);
+  };
+
+  // Drag functionality for investor details modal
+  const handleDetailsDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (detailsLastTap && (now - detailsLastTap) < DOUBLE_TAP_DELAY) {
+      setShowInvestorDetailsModal(false);
+    } else {
+      setDetailsLastTap(now);
+    }
+  };
+
+  const handleDetailsDragStart = () => {
+    setIsDetailsDragging(true);
+  };
+
+  const handleDetailsDragMove = (event: any) => {
+    const { translationY } = event.nativeEvent;
+    
+    if (translationY >= 0 && translationY <= 500) {
+      detailsDragTranslateY.setValue(translationY);
+      setDetailsDragValue(translationY);
+      
+      const opacity = Math.max(0.2, 1 - (translationY / 500));
+      detailsDragOpacity.setValue(opacity);
+    }
+  };
+
+  const handleDetailsDragEnd = (event: any) => {
+    const { translationY, velocityY } = event.nativeEvent;
+    
+    setIsDetailsDragging(false);
+    setDetailsDragValue(0);
+    
+    if (translationY > 150 || velocityY > 800) {
+      Animated.parallel([
+        Animated.timing(detailsDragTranslateY, {
+          toValue: 600,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(detailsDragOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(detailsModalOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowInvestorDetailsModal(false);
+      });
+      
+      setTimeout(() => {
+        if (!showInvestorDetailsModal) {
+          detailsModalOpacity.setValue(0);
+        }
+      }, 300);
+    } else {
+      Animated.parallel([
+        Animated.spring(detailsDragTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 9,
+          overshootClamping: true,
+        }),
+        Animated.spring(detailsDragOpacity, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 9,
+          overshootClamping: true,
+        }),
+      ]).start();
     }
   };
 
@@ -551,6 +1003,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
           <View key={investor._id}>
             <TouchableOpacity 
               style={[styles.investorCard, { backgroundColor: colors.cardBackground }]}
+              onPress={() => handleInvestorDetails(investor)}
               activeOpacity={0.7}
             >
             <View style={styles.investorHeader}>
@@ -569,7 +1022,18 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 </Text>
               </View>
               <View style={styles.headerActions}>
-                {/* Edit and Delete buttons */}
+                {/* Share button */}
+                <TouchableOpacity
+                  style={[styles.cardActionButton, { backgroundColor: colors.success }]}
+                  onPress={(e) => {
+                    e.stopPropagation(); 
+                    handleShareInvestor(investor);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="share" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+                {/* Edit button */}
                 <TouchableOpacity
                   style={[styles.cardActionButton, { backgroundColor: colors.primary }]}
                   onPress={(e) => {
@@ -580,6 +1044,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 >
                   <Ionicons name="create" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
+                {/* Delete button */}
                 <TouchableOpacity
                   style={[styles.cardActionButton, { backgroundColor: colors.danger }]}
                   onPress={(e) => {
@@ -970,6 +1435,128 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Investor Details Modal */}
+      <Modal
+        visible={showInvestorDetailsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowInvestorDetailsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowInvestorDetailsModal(false)}
+        >
+          <TouchableOpacity 
+            style={[styles.investorDetailsModal, { backgroundColor: colors.cardBackground }]}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View style={styles.investorDetailsHeader}>
+              <View style={styles.investorDetailsHeaderText}>
+                <Text style={[styles.investorDetailsTitle, { color: colors.text }]}>
+                  Investor Details
+                </Text>
+                <Text style={[styles.investorDetailsSubtitle, { color: colors.lightText }]}>
+                  {selectedInvestorDetails?.name || 'Loading...'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowInvestorDetailsModal(false)}
+                style={styles.investorDetailsCloseButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={24} color={colors.lightText} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedInvestorDetails && (
+              <ScrollView style={styles.investorDetailsContent} showsVerticalScrollIndicator={false}>
+                {/* Investment Summary */}
+                <View style={[styles.investorDetailsCard, { backgroundColor: colors.background }]}>
+                  <Text style={[styles.investorDetailsCardTitle, { color: colors.text }]}>
+                    Investment Summary
+                  </Text>
+                  
+                  {/* Investment Stats - Center Layout like Revenue Overview */}
+                  <View style={styles.investorDetailsStats}>
+                    {/* Investment Amount - Center */}
+                    <View style={styles.investorDetailsItem}>
+                      <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
+                        Investment Amount
+                      </Text>
+                      <Text style={[styles.investorDetailsValue, { color: colors.success }]}>
+                        {formatCurrency(selectedInvestorDetails.investmentAmount || 0)}
+                      </Text>
+                    </View>
+                    
+                    {/* Monthly Profit and Total Profit - Side by Side */}
+                    <View style={styles.investorDetailsRow}>
+                      <View style={styles.investorDetailsItem}>
+                        <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
+                          Monthly Profit
+                        </Text>
+                        <Text style={[styles.investorDetailsValue, { color: colors.warning }]}>
+                          {formatCurrency(selectedInvestorDetails.monthlyProfit || 0)}
+                        </Text>
+                      </View>
+                      <View style={styles.investorDetailsItem}>
+                        <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
+                          Profit Earned
+                        </Text>
+                        <Text style={[styles.investorDetailsValue, { color: colors.primary }]}>
+                          {formatCurrency(calculateTotalProfit(selectedInvestorDetails))}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                 {/* Profit History */}
+                 <View style={[styles.investorDetailsCard, { backgroundColor: colors.background }]}>
+                   <Text style={[styles.investorDetailsCardTitle, { color: colors.text }]}>
+                     Profit History by Month
+                   </Text>
+                   {selectedInvestorDetails.profitHistory && selectedInvestorDetails.profitHistory.length > 0 ? (
+                     <ScrollView 
+                       style={styles.profitHistoryScrollContainer}
+                       showsVerticalScrollIndicator={true}
+                       nestedScrollEnabled={true}
+                     >
+                       <View style={styles.profitHistoryList}>
+                         {selectedInvestorDetails.profitHistory.map((profit, index) => (
+                           <View key={index} style={styles.profitHistoryItem}>
+                             <View style={styles.profitHistoryInfo}>
+                               <Text style={[styles.profitHistoryMonth, { color: colors.text }]}>
+                                 {profit.month}
+                               </Text>
+                               <Text style={[styles.profitHistoryDate, { color: colors.lightText }]}>
+                                 {formatDate(profit.createdAt)}
+                               </Text>
+                             </View>
+                             <Text style={[styles.profitHistoryAmount, { color: colors.success }]}>
+                               {formatCurrency(profit.profit)}
+                             </Text>
+                           </View>
+                         ))}
+                       </View>
+                     </ScrollView>
+                   ) : (
+                     <View style={styles.emptyProfitHistory}>
+                       <Ionicons name="receipt-outline" size={32} color={colors.lightText} />
+                       <Text style={[styles.emptyProfitHistoryText, { color: colors.lightText }]}>
+                         No profit history available
+                       </Text>
+                     </View>
+                   )}
+                 </View>
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -1523,6 +2110,172 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontStyle: 'italic',
+  },
+
+  // Investor Details Modal Styles
+  investorDetailsModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    maxHeight: '90%',
+    marginTop: 40,
+  },
+  investorDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  investorDetailsHeaderText: {
+    flex: 1,
+  },
+  investorDetailsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  investorDetailsSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  investorDetailsCloseButton: {
+    padding: 4,
+  },
+  investorDetailsContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  investorDetailsCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  investorDetailsInfo: {
+    alignItems: 'center',
+  },
+  investorDetailsName: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  investorDetailsEmail: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  investorDetailsPhone: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  investorDetailsJoined: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  investorDetailsCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  investorDetailsStats: {
+    flexDirection: 'column',
+    gap: 16,
+  },
+  investorDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 20,
+  },
+  investorDetailsItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  investorDetailsCol: {
+    flex: 1,
+    marginRight: 16,
+  },
+  investorDetailsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  investorDetailsValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  profitHistoryScrollContainer: {
+    maxHeight: 200,
+    marginTop: 8,
+  },
+  profitHistoryList: {
+    marginTop: 8,
+  },
+  profitHistoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    marginBottom: 8,
+  },
+  profitHistoryInfo: {
+    flex: 1,
+  },
+  profitHistoryMonth: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  profitHistoryDate: {
+    fontSize: 12,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  profitHistoryAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  emptyProfitHistory: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyProfitHistoryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
 
