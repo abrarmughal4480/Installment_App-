@@ -28,6 +28,8 @@ import ManagersSection from '../components/ManagersSection';
 import InvestorsSection from '../components/InvestorsSection';
 // @ts-ignore
 import LoansSection from '../components/LoansSection';
+// @ts-ignore
+import AdminsSection from '../components/AdminsSection';
 // @ts-ignore  
 import BottomNavBar from '../components/BottomNavBar';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -58,7 +60,7 @@ export default function AdminDashboard() {
   const [isCreateDragging, setIsCreateDragging] = useState(false);
   const [createDragValue, setCreateDragValue] = useState(0);
   const [installmentHeaderY, setInstallmentHeaderY] = useState(0);
-  const [currentView, setCurrentView] = useState<'installments' | 'managers' | 'investors' | 'loans'>('installments');
+  const [currentView, setCurrentView] = useState<'installments' | 'managers' | 'investors' | 'loans' | 'admins'>('installments');
   const [selectedManagerFilter, setSelectedManagerFilter] = useState<string | null>(null);
   
   // Confirmation modal state
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
     icon: '',
     iconColor: '',
     onConfirm: () => {},
+    onCancel: () => {},
   });
   
   const insets = useSafeAreaInsets();
@@ -672,6 +675,10 @@ export default function AdminDashboard() {
     showInfo('Showing all installments');
   };
 
+  const handleViewChange = (view: 'installments' | 'managers' | 'investors' | 'loans' | 'admins') => {
+    setCurrentView(view);
+  };
+
   const handleInstallmentPress = (installment: any) => {
     
     router.push({
@@ -746,6 +753,9 @@ export default function AdminDashboard() {
         } catch (error) {
           showError('Failed to delete installment. Please try again.');
         }
+      },
+      onCancel: () => {
+        // Do nothing on cancel for delete
       },
     });
   };
@@ -1650,6 +1660,11 @@ export default function AdminDashboard() {
           user?.type === 'admin' && (
             <InvestorsSection colors={colors} />
           )
+        ) : currentView === 'admins' ? (
+          /* Admins Section - Only for specific admin */
+          user?.type === 'admin' && user?.email === 'installmentadmin@app.com' && (
+            <AdminsSection colors={colors} user={user} />
+          )
         ) : (
           /* Loans Section - Only for Admin */
           user?.type === 'admin' && (
@@ -1663,7 +1678,8 @@ export default function AdminDashboard() {
         <BottomNavBar 
           colors={colors}
           currentView={currentView}
-          onViewChange={setCurrentView}
+          onViewChange={handleViewChange}
+          user={user}
         />
       )}
 
@@ -1890,6 +1906,7 @@ export default function AdminDashboard() {
         visible={confirmationModal.visible}
         onClose={() => setConfirmationModal(prev => ({ ...prev, visible: false }))}
         onConfirm={confirmationModal.onConfirm}
+        onCancel={confirmationModal.onCancel}
         title={confirmationModal.title}
         message={confirmationModal.message}
         confirmText={confirmationModal.confirmText}
@@ -1898,6 +1915,7 @@ export default function AdminDashboard() {
         iconColor={confirmationModal.iconColor}
         colors={colors}
       />
+
 
       </View>
     </GestureHandlerRootView>

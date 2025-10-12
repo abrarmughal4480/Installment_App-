@@ -11,11 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BottomNavBarProps {
   colors: any;
-  currentView: 'installments' | 'managers' | 'investors' | 'loans';
-  onViewChange: (view: 'installments' | 'managers' | 'investors' | 'loans') => void;
+  currentView: 'installments' | 'managers' | 'investors' | 'loans' | 'admins';
+  onViewChange: (view: 'installments' | 'managers' | 'investors' | 'loans' | 'admins') => void;
+  user?: any;
 }
 
-export default function BottomNavBar({ colors, currentView, onViewChange }: BottomNavBarProps) {
+export default function BottomNavBar({ colors, currentView, onViewChange, user }: BottomNavBarProps) {
   const insets = useSafeAreaInsets();
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
   
@@ -30,6 +31,9 @@ export default function BottomNavBar({ colors, currentView, onViewChange }: Bott
   // Calculate dynamic bottom position - no gap
   const bottomPosition = 0;
   
+  // Check if current user is the specific admin who can add admins
+  const canAddAdmin = user?.type === 'admin' && user?.email === 'installmentadmin@app.com';
+
   const tabs = [
     {
       id: 'installments' as const,
@@ -37,6 +41,13 @@ export default function BottomNavBar({ colors, currentView, onViewChange }: Bott
       icon: 'receipt-outline',
       activeIcon: 'receipt',
     },
+    // Only show Admins tab for specific admin
+    ...(canAddAdmin ? [{
+      id: 'admins' as const,
+      label: 'Admins',
+      icon: 'shield-outline',
+      activeIcon: 'shield',
+    }] : []),
     {
       id: 'managers' as const,
       label: 'Managers',
@@ -87,6 +98,7 @@ export default function BottomNavBar({ colors, currentView, onViewChange }: Bott
                 />
               </View>
               <Text
+                numberOfLines={1}
                 style={[
                   styles.tabLabel,
                   { color: isActive ? colors.primary : colors.lightText }
@@ -117,34 +129,34 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 4,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    marginHorizontal: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginHorizontal: 1,
     minHeight: 50,
   },
   iconContainer: {
-    width: 48,
-    height: 28,
-    borderRadius: 14,
+    width: 40,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    minWidth: 48,
-    minHeight: 28,
+    marginBottom: 2,
+    minWidth: 40,
+    minHeight: 24,
     overflow: 'hidden',
    },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });

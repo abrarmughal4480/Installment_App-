@@ -14,6 +14,7 @@ interface ConfirmationModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onCancel?: () => void;
   title: string;
   message: string;
   confirmText?: string;
@@ -28,6 +29,7 @@ export default function ConfirmationModal({
   visible,
   onClose,
   onConfirm,
+  onCancel,
   title,
   message,
   confirmText = 'Confirm',
@@ -62,6 +64,9 @@ export default function ConfirmationModal({
   };
 
   const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
     onClose();
   };
 

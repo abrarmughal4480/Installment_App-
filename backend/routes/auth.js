@@ -7,7 +7,12 @@ import {
   login,
   logout,
   getProfile,
-  changePassword
+  changePassword,
+  checkAddAdminPermission,
+  addAdmin,
+  getAdmins,
+  deleteAdmin,
+  updateAdminName
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -24,5 +29,9 @@ router.post('/logout', logout);              // Logout
 // Protected routes
 router.get('/profile', authenticateToken, getProfile); // Get user profile
 router.post('/change-password', authenticateToken, changePassword); // Change password
-
+router.get('/check-add-admin-permission', authenticateToken, checkAddAdminPermission); // Check if user can add admins
+router.post('/add-admin', authenticateToken, addAdmin); // Add new admin
+router.get('/admins', authenticateToken, getAdmins); // Get all admins
+router.delete('/admins/:id', authenticateToken, deleteAdmin); // Delete admin
+router.put('/admins/:id/name', authenticateToken, updateAdminName);
 export default router;

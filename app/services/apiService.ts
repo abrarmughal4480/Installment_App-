@@ -216,6 +216,60 @@ class ApiService {
     });
   }
 
+  async checkAddAdminPermission(): Promise<{ success: boolean; hasPermission: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/auth/check-add-admin-permission', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async addAdmin(email: string, name?: string): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/auth/add-admin', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, name }),
+    });
+  }
+
+  async getAdmins(): Promise<{ success: boolean; admins: any[] }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/auth/admins', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async deleteAdmin(adminId: string): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/auth/admins/${adminId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async updateAdminName(adminId: string, name: string): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/auth/admins/${adminId}/name`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+  }
+
   // OTP Methods
   async sendOTP(email: string, name?: string): Promise<OTPResponse> {
     return this.request('/api/auth/send-otp', {

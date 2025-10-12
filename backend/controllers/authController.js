@@ -702,3 +702,219 @@ export const cleanupExpiredOTP = async () => {
     console.error('Cleanup expired OTP error:', error);
   }
 };
+
+// Check if user has permission to add admins
+export const checkAddAdminPermission = async (req, res) => {
+  try {
+    const user = req.user;
+    
+    // Check if user is admin and has the specific email
+    const hasPermission = user.type === 'admin' && user.email === 'installmentadmin@app.com';
+    
+    res.json({
+      success: true,
+      hasPermission: hasPermission,
+      message: hasPermission ? 'User has permission to add admins' : 'User does not have permission to add admins'
+    });
+    
+  } catch (error) {
+    console.error('Check add admin permission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error. Please try again later.'
+    });
+  }
+};
+
+// Add new admin
+export const addAdmin = async (req, res) => {
+  try {
+    const user = req.user;
+    const { email, name } = req.body;
+    
+    // Check if user has permission to add admins
+    if (user.type !== 'admin' || user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to add admins'
+      });
+    }
+    
+    // Validate email
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    // Check if email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists'
+      });
+    }
+    
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+    
+    // Hash the temporary password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(tempPassword, saltRounds);
+    
+    // Create new admin user
+    const newAdmin = new User({
+      name: name || email.split('@')[0], // Use provided name or email prefix as default
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      type: 'admin',
+      isActive: true
+    });
+    
+    await newAdmin.save();
+    
+    // Send email with temporary password
+    try {
+      await emailService.sendAdminCredentials(email, tempPassword);
+    } catch (emailError) {
+      console.error('Failed to send admin credentials email:', emailError);
+      // Don't fail the request if email fails, just log it
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: 'Admin created successfully. Temporary password sent to email.'
+    });
+    
+  } catch (error) {
+    console.error('Add admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error. Please try again later.'
+    });
+  }
+};
+
+// Get all admins (only for main admin)
+export const getAdmins = async (req, res) => {
+  try {
+    // Check if user is the main admin
+    if (req.user.type !== 'admin' || req.user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only main admin can view admins.' 
+      });
+    }
+
+    const admins = await User.find({ type: 'admin' })
+      .select('-password -otp -otpExpires')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      admins: admins
+    });
+  } catch (error) {
+    console.error('Get admins error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch admins' 
+    });
+  }
+};
+
+// Delete admin (only for main admin)
+export const deleteAdmin = async (req, res) => {
+  try {
+    // Check if user is the main admin
+    if (req.user.type !== 'admin' || req.user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only main admin can delete admins.' 
+      });
+    }
+
+    const { id } = req.params;
+
+    // Find the admin to delete
+    const adminToDelete = await User.findById(id);
+    if (!adminToDelete) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Admin not found' 
+      });
+    }
+
+    // Prevent deleting the main admin
+    if (adminToDelete.email === 'installmentadmin@app.com') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete the main admin account' 
+      });
+    }
+
+    // Delete the admin
+    await User.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Admin deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete admin' 
+    });
+  }
+};
+
+// Update admin name (only for main admin)
+export const updateAdminName = async (req, res) => {
+  try {
+    // Check if user is the main admin
+    if (req.user.type !== 'admin' || req.user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only main admin can update admin names.' 
+      });
+    }
+
+    const { id } = req.params;
+    const { name } = req.body;
+
+    // Validate name
+    if (!name || !name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Name is required' 
+      });
+    }
+
+    // Find the admin to update
+    const adminToUpdate = await User.findById(id);
+    if (!adminToUpdate) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Admin not found' 
+      });
+    }
+
+    // Update the admin name
+    adminToUpdate.name = name.trim();
+    await adminToUpdate.save();
+
+    res.json({
+      success: true,
+      message: 'Admin name updated successfully'
+    });
+  } catch (error) {
+    console.error('Update admin name error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update admin name' 
+    });
+  }
+};
