@@ -29,9 +29,10 @@ interface Manager {
 
 interface ManagersSectionProps {
   colors: any;
+  onManagerClick?: (managerId: string) => void;
 }
 
-export default function ManagersSection({ colors }: ManagersSectionProps) {
+export default function ManagersSection({ colors, onManagerClick }: ManagersSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [managers, setManagers] = useState<Manager[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,6 +55,9 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
   
   // Add manager modal state
   const [showAddManagerModal, setShowAddManagerModal] = useState(false);
+  
+  // Reset password loading state
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   
   // Form input states
   const [formData, setFormData] = useState({
@@ -377,6 +381,11 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
             <TouchableOpacity 
               style={[styles.installmentCard, { backgroundColor: colors.cardBackground }]}
               activeOpacity={0.7}
+              onPress={() => {
+                if (onManagerClick) {
+                  onManagerClick(manager._id);
+                }
+              }}
             >
             <View style={styles.installmentHeader}>
               <View style={styles.installmentInfo}>
@@ -814,14 +823,31 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.cancelButton, { backgroundColor: colors.border }]}
-                  onPress={() => setShowResetPasswordModal(false)}
+                  onPress={() => {
+                    setShowResetPasswordModal(false);
+                    // Reset form data when modal is closed
+                    setFormData(prev => ({
+                      ...prev,
+                      newPassword: '',
+                      confirmPassword: ''
+                    }));
+                    setIsResettingPassword(false);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.saveButton, { backgroundColor: colors.danger }]}
+                  style={[
+                    styles.saveButton, 
+                    { 
+                      backgroundColor: isResettingPassword ? colors.lightText : colors.danger,
+                      opacity: isResettingPassword ? 0.7 : 1
+                    }
+                  ]}
                   onPress={async () => {
+                    if (isResettingPassword) return; // Prevent multiple clicks
+                    
                     if (!formData.newPassword.trim()) {
                       showError('Please enter a new password');
                       return;
@@ -838,6 +864,7 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
                     }
                     
                     try {
+                      setIsResettingPassword(true);
                       const response = await apiService.updateManager(selectedManager!._id, {
                         password: formData.newPassword,
                         editType: 'password'
@@ -847,16 +874,27 @@ export default function ManagersSection({ colors }: ManagersSectionProps) {
                         setShowResetPasswordModal(false);
                         showSuccess('Password reset successfully');
                         loadManagers(false); // Reload managers list
+                        // Reset form data
+                        setFormData(prev => ({
+                          ...prev,
+                          newPassword: '',
+                          confirmPassword: ''
+                        }));
                       } else {
                         showError(response.message || 'Failed to reset password');
                       }
                     } catch (error) {
                       showError('Failed to reset password. Please try again.');
+                    } finally {
+                      setIsResettingPassword(false);
                     }
                   }}
                   activeOpacity={0.7}
+                  disabled={isResettingPassword}
                 >
-                  <Text style={styles.saveButtonText}>Reset Password</Text>
+                  <Text style={styles.saveButtonText}>
+                    {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

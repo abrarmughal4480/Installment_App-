@@ -2,46 +2,35 @@ import Installment from '../models/Installment.js';
 
 // Get all installments (admin) or customer installments
 export const getInstallments = async (req, res) => {
-  console.log('🚨 GET INSTALLMENTS ENDPOINT HIT! 🚨');
-  console.log('🚨 Request received at:', new Date().toISOString());
-  console.log('🚨 User info:', req.user);
-  
   try {
     const { customerId } = req.params;
     const { status } = req.query;
     
-    console.log('🔍 getInstallments called:', {
-      userType: req.user?.type,
-      userId: req.user?.userId,
-      customerId,
-      status,
-      timestamp: new Date().toISOString()
-    });
-    
     let query = {};
     
-    // For admin users, show all installments. For other users, filter by created installments
+    // For admin users, show all installments. For other users, filter by created installments or assigned installments
     if (req.user.type !== 'admin') {
-      query.createdBy = req.user.userId;
-      console.log('👤 Non-admin user, filtering by createdBy:', req.user.userId);
-    } else {
-      console.log('👑 Admin user, fetching ALL installments');
+      // For managers, show installments they created OR installments assigned to them
+      if (req.user.type === 'manager') {
+        query.$or = [
+          { createdBy: req.user.userId },
+          { managerId: req.user.userId }
+        ];
+      } else {
+        // For other non-admin users, only show installments they created
+        query.createdBy = req.user.userId;
+      }
     }
     
     // If customerId is provided, also filter by that customer
     if (customerId) {
       query.customerId = customerId;
-      console.log('🔍 Filtering by customerId:', customerId);
     }
-    
-    console.log('📋 Final query:', JSON.stringify(query, null, 2));
     
     const installmentPlans = await Installment.find(query)
       .populate('createdBy', 'name email')
       .populate('managerId', 'name email')
       .sort({ createdAt: -1 });
-
-    console.log('📊 Found installment plans:', installmentPlans.length);
 
     // Map status values to match frontend expectations
     const mapStatus = (status) => {
@@ -56,10 +45,7 @@ export const getInstallments = async (req, res) => {
     // Process each installment plan to show only next unpaid installment
     const installments = [];
     
-    console.log('🔄 Processing installment plans...');
-    
     for (const plan of installmentPlans) {
-      console.log(`📦 Processing plan: ${plan.customerName} (${plan.customerId}) - ${plan.productName}`);
       
       // Find the next unpaid installment
       const nextUnpaidInstallment = plan.installments.find(inst => 
@@ -67,7 +53,6 @@ export const getInstallments = async (req, res) => {
       );
       
       if (nextUnpaidInstallment) {
-        console.log(`✅ Found next unpaid installment #${nextUnpaidInstallment.installmentNumber} for ${plan.customerName}`);
         // Apply status filter if provided
         if (status) {
           const mappedStatus = mapStatus(nextUnpaidInstallment.status);
@@ -130,32 +115,15 @@ export const getInstallments = async (req, res) => {
 
 
         installments.push(installmentData);
-        console.log(`📝 Added installment to response: ${plan.customerName} - ${nextUnpaidInstallment.installmentNumber}`);
-      } else {
-        console.log(`❌ No unpaid installments found for ${plan.customerName}`);
       }
     }
-
-    console.log('📤 Sending response:', {
-      success: true,
-      installmentCount: installments.length,
-      installments: installments.map(inst => ({
-        customerName: inst.customerName,
-        installmentNumber: inst.installmentNumber,
-        status: inst.status
-      }))
-    });
 
     res.json({
       success: true,
       installments: installments
     });
   } catch (error) {
-    console.error('❌ Error fetching installments:', {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
+    console.error('Error fetching installments:', error.message);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch installments'
@@ -388,15 +356,6 @@ export const createInstallments = async (req, res) => {
 
       await installment.save();
 
-      // Log successful creation
-      console.log(`✅ Installment Successfully Created!`);
-      console.log(`📋 Customer: ${installment.customerName} (ID: ${installment.customerId})`);
-      console.log(`📦 Product: ${installment.productName}`);
-      console.log(`💰 Total Amount: Rs. ${installment.totalAmount.toLocaleString()}`);
-      console.log(`📅 Installments: ${installment.installmentCount} payments`);
-      console.log(`👤 Created By: ${req.user?.userId}`);
-      console.log(`🆔 Installment ID: ${installment._id}`);
-      console.log(`⏰ Created At: ${new Date().toISOString()}`);
 
       res.status(201).json({
         success: true,
@@ -489,12 +448,9 @@ export const payInstallment = async (req, res) => {
         const newDueDate = new Date(dueDate);
         if (!isNaN(newDueDate.getTime())) {
           installment.dueDate = newDueDate;
-          console.log(`📅 Updated due date for installment #${installmentNumber} to: ${newDueDate.toISOString()}`);
-        } else {
-          console.log(`⚠️ Invalid due date format provided: ${dueDate}`);
         }
       } catch (error) {
-        console.log(`❌ Error parsing due date: ${dueDate}`, error);
+        // Invalid date format, ignore
       }
     }
     
@@ -631,12 +587,9 @@ export const updatePayment = async (req, res) => {
         const newDueDate = new Date(dueDate);
         if (!isNaN(newDueDate.getTime())) {
           installment.dueDate = newDueDate;
-          console.log(`📅 Updated due date for installment #${installmentNumber} to: ${newDueDate.toISOString()}`);
-        } else {
-          console.log(`⚠️ Invalid due date format provided: ${dueDate}`);
         }
       } catch (error) {
-        console.log(`❌ Error parsing due date: ${dueDate}`, error);
+        // Invalid date format, ignore
       }
     }
     

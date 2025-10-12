@@ -280,9 +280,20 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // For admin users, always use the admin endpoint to get all installments
-    // For other users, use customer-specific endpoint
-    const endpoint = isAdmin ? `/api/installments` : `/api/installments/customer/${customerId}`;
+    // Determine endpoint based on user type and parameters
+    let endpoint;
+    if (isAdmin) {
+      // Admin users use general endpoint to get all installments
+      endpoint = `/api/installments`;
+    } else if (customerId && customerId.trim() !== '') {
+      // Customer users with specific customerId use customer-specific endpoint
+      endpoint = `/api/installments/customer/${customerId}`;
+    } else {
+      // Manager users (or other non-admin users) use general endpoint
+      // Backend will filter based on user type and permissions
+      endpoint = `/api/installments`;
+    }
+    
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     
     console.log('🌐 API Call:', {

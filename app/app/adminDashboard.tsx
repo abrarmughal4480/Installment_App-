@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const [createDragValue, setCreateDragValue] = useState(0);
   const [installmentHeaderY, setInstallmentHeaderY] = useState(0);
   const [currentView, setCurrentView] = useState<'installments' | 'managers' | 'investors' | 'loans'>('installments');
+  const [selectedManagerFilter, setSelectedManagerFilter] = useState<string | null>(null);
   
   // Confirmation modal state
   const [confirmationModal, setConfirmationModal] = useState({
@@ -313,8 +314,9 @@ export default function AdminDashboard() {
         return;
       }
       
-      console.log('🔄 Loading installments for admin...');
-      const response = await apiService.getInstallments('', true);
+      console.log('🔄 Loading installments for user type:', user?.type);
+      const isAdmin = user?.type === 'admin';
+      const response = await apiService.getInstallments('', isAdmin);
       console.log('📡 Installments API response:', response);
       
       if (response.success) {
@@ -551,6 +553,30 @@ export default function AdminDashboard() {
   const filteredInstallments = useMemo(() => {
     let filtered = installments;
     
+    // Apply manager filter (only for admin users)
+    if (selectedManagerFilter && user?.type === 'admin') {
+      console.log('🔍 Filtering by manager:', selectedManagerFilter);
+      console.log('📊 Before filtering:', filtered.length, 'installments');
+      
+      filtered = filtered.filter(installment => {
+        const managerMatch = installment.manager?._id === selectedManagerFilter;
+        const createdByMatch = installment.createdBy?._id === selectedManagerFilter;
+        const matches = managerMatch || createdByMatch;
+        
+        if (matches) {
+          console.log('✅ Match found:', {
+            customerName: installment.customerName,
+            managerId: installment.manager?._id,
+            createdById: installment.createdBy?._id
+          });
+        }
+        
+        return matches;
+      });
+      
+      console.log('📊 After filtering:', filtered.length, 'installments');
+    }
+    
     // Apply status filter
     if (filter !== 'all') {
       filtered = filtered.filter(installment => {
@@ -580,7 +606,7 @@ export default function AdminDashboard() {
     }
     
     return filtered;
-  }, [installments, filter, searchQuery]);
+  }, [installments, filter, searchQuery, selectedManagerFilter, user?.type]);
 
   
   const filterCounts = useMemo(() => {
@@ -630,6 +656,20 @@ export default function AdminDashboard() {
       showSuccess('Logged out successfully');
       router.replace('/');
     }
+  };
+
+  const handleManagerClick = (managerId: string) => {
+    console.log('🔍 Manager clicked:', managerId);
+    console.log('📊 Available installments:', installments.length);
+    console.log('📋 Sample installment structure:', installments[0]);
+    setSelectedManagerFilter(managerId);
+    setCurrentView('installments');
+    showInfo('Showing installments for selected manager');
+  };
+
+  const clearManagerFilter = () => {
+    setSelectedManagerFilter(null);
+    showInfo('Showing all installments');
   };
 
   const handleInstallmentPress = (installment: any) => {
@@ -1351,9 +1391,11 @@ export default function AdminDashboard() {
         <View ref={installmentSectionRef} style={styles.installmentSection} onLayout={handleInstallmentHeaderLayout}>
           <View style={styles.sectionHeader}>
             {!showSearchBar ? (
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {user?.type === 'manager' ? 'Customer Installments' : 'Installment Management'}
-              </Text>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  {user?.type === 'manager' ? 'Customer Installments' : 'Installment Management'}
+                </Text>
+              </View>
             ) : (
               <View style={[
                 styles.searchInputWrapper, 
@@ -1419,6 +1461,20 @@ export default function AdminDashboard() {
               )}
             </View>
           </View>
+          
+          {/* Manager Filter Chip */}
+          {selectedManagerFilter && user?.type === 'admin' && (
+            <View style={styles.filterChipContainer}>
+              <TouchableOpacity
+                style={[styles.filterChip, { backgroundColor: colors.primary }]}
+                onPress={clearManagerFilter}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.filterChipText}>Manager Filter Active</Text>
+                <Ionicons name="close" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          )}
           
           {isLoading ? (
             
@@ -1587,7 +1643,7 @@ export default function AdminDashboard() {
         ) : currentView === 'managers' ? (
           /* Managers Section - Only for Admin */
           user?.type === 'admin' && (
-            <ManagersSection colors={colors} />
+            <ManagersSection colors={colors} onManagerClick={handleManagerClick} />
           )
         ) : currentView === 'investors' ? (
           /* Investors Section - Only for Admin */
@@ -2629,5 +2685,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  filterChipContainer: {
+    marginTop: 4,
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  filterChipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
