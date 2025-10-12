@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import ConfirmationModal from './ConfirmationModal';
 
 interface Admin {
@@ -23,6 +24,12 @@ interface Admin {
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+  permissions?: {
+    canViewData: boolean;
+    canAddData: boolean;
+    grantedBy?: string;
+    grantedAt?: string;
+  };
 }
 
 interface AdminsSectionProps {
@@ -32,6 +39,7 @@ interface AdminsSectionProps {
 
 export default function AdminsSection({ colors, user }: AdminsSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { refreshPermissions } = usePermissions();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +67,9 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
   
   // Edit name loading state
   const [isUpdatingName, setIsUpdatingName] = useState(false);
+  
+  // Permission management loading state
+  const [isUpdatingPermissions, setIsUpdatingPermissions] = useState<string | null>(null);
   
   // Form input states
   const [formData, setFormData] = useState({
@@ -291,6 +302,46 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
     }
   };
 
+  const handleGrantPermissions = async (admin: Admin) => {
+    try {
+      setIsUpdatingPermissions(admin._id);
+      const response = await apiService.updateAdminPermissions(admin._id, true, true);
+      
+      if (response.success) {
+        showSuccess('Admin permissions granted successfully');
+        loadAdmins(false); // Refresh the list
+        // Refresh permissions for all users (in case the granted admin is currently logged in)
+        await refreshPermissions();
+      } else {
+        showError(response.message || 'Failed to grant permissions');
+      }
+    } catch (error) {
+      showError('Failed to grant permissions. Please try again.');
+    } finally {
+      setIsUpdatingPermissions(null);
+    }
+  };
+
+  const handleRevokePermissions = async (admin: Admin) => {
+    try {
+      setIsUpdatingPermissions(admin._id);
+      const response = await apiService.updateAdminPermissions(admin._id, false, false);
+      
+      if (response.success) {
+        showSuccess('Admin permissions revoked successfully');
+        loadAdmins(false); // Refresh the list
+        // Refresh permissions for all users (in case the revoked admin is currently logged in)
+        await refreshPermissions();
+      } else {
+        showError(response.message || 'Failed to revoke permissions');
+      }
+    } catch (error) {
+      showError('Failed to revoke permissions. Please try again.');
+    } finally {
+      setIsUpdatingPermissions(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.installmentSection}>
@@ -406,9 +457,15 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                 <Text style={[styles.installmentId, { color: colors.lightText }]}>
                   Email: {admin.email}
                 </Text>
-                {admin.email === 'installmentadmin@app.com' && (
+                {admin.email === 'installmentadmin@app.com' ? (
                   <Text style={[styles.installmentId, { color: colors.success }]}>
                     Main Admin
+                  </Text>
+                ) : (
+                  <Text style={[styles.installmentId, { 
+                    color: admin.permissions?.canViewData ? colors.success : colors.warning 
+                  }]}>
+                    {admin.permissions?.canViewData ? 'Has Access' : 'No Access'}
                   </Text>
                 )}
               </View>
@@ -426,17 +483,59 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                     >
                       <Ionicons name="create" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
+                    
+                    {/* Permission management buttons - Only for non-main admins */}
                     {admin.email !== 'installmentadmin@app.com' && (
-                      <TouchableOpacity
-                        style={[styles.cardActionButton, { backgroundColor: colors.danger }]}
-                        onPress={(e) => {
-                          e.stopPropagation(); 
-                          handleDeleteAdmin(admin);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
+                      <>
+                        {admin.permissions?.canViewData ? (
+                          <TouchableOpacity
+                            style={[
+                              styles.cardActionButton, 
+                              { 
+                                backgroundColor: isUpdatingPermissions === admin._id ? colors.lightText : colors.success,
+                                opacity: isUpdatingPermissions === admin._id ? 0.7 : 1
+                              }
+                            ]}
+                            onPress={(e) => {
+                              e.stopPropagation(); 
+                              handleRevokePermissions(admin);
+                            }}
+                            activeOpacity={0.7}
+                            disabled={isUpdatingPermissions === admin._id}
+                          >
+                            <Ionicons name="lock-open" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={[
+                              styles.cardActionButton, 
+                              { 
+                                backgroundColor: isUpdatingPermissions === admin._id ? colors.lightText : colors.danger,
+                                opacity: isUpdatingPermissions === admin._id ? 0.7 : 1
+                              }
+                            ]}
+                            onPress={(e) => {
+                              e.stopPropagation(); 
+                              handleGrantPermissions(admin);
+                            }}
+                            activeOpacity={0.7}
+                            disabled={isUpdatingPermissions === admin._id}
+                          >
+                            <Ionicons name="lock-closed" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        )}
+                        
+                        <TouchableOpacity
+                          style={[styles.cardActionButton, { backgroundColor: colors.danger }]}
+                          onPress={(e) => {
+                            e.stopPropagation(); 
+                            handleDeleteAdmin(admin);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </>
                     )}
                   </>
                 )}

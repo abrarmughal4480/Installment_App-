@@ -521,6 +521,8 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 text-align: center;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin-top: 10px;
+                width: auto;
+                display: inline-block;
               }
               .investment-label {
                 font-size: 14px;
@@ -538,9 +540,6 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 margin: 25px 0;
               }
               .footer {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 35px;
                 margin-top: 30px;
                 padding-top: 15px;
               }
@@ -593,13 +592,13 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
               
               /* Monthly Closing Profit Styles */
               .closing-month-section {
-                margin: 30px 0;
+                margin: 30px 0 30px 20px;
               }
               .closing-month-title {
                 font-size: 20px;
                 font-weight: bold;
                 color: #000;
-                text-align: center;
+                text-align: left;
                 margin-bottom: 20px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
@@ -609,10 +608,11 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 border: 2px solid #4CAF50;
                 border-radius: 8px;
                 padding: 18px;
-                text-align: center;
+                text-align: left;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin-top: 10px;
-                width: 100%;
+                width: auto;
+                display: inline-block;
                 box-sizing: border-box;
               }
               .profit-label {
@@ -677,17 +677,13 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
               </div>
 
               <div class="footer">
-                <div class="thank-you-section">
-                  <div class="thank-you-graphic">
-                    <div class="thank-you-text">THANKYOU</div>
-                    <div class="thank-you-urdu">شکریہ</div>
-                  </div>
-                </div>
-
                 <div class="instructions">
-                  <div class="instructions-title">ESSENTIAL INFORMATION</div>
+                  <div class="instructions-title">جزاك الله خيرا</div>
                   <div class="instructions-text">
-                    یہ رسید آپ کی سرمایہ کاری کی مکمل تفصیلات فراہم کرتی ہے۔ آپ کی سرمایہ کاری کی تفصیلات اور منافع کی تقسیم کی تاریخوں کے ساتھ۔ براہ کرم اپنے اکاؤنٹ کی حالت کو باقاعدگی سے چیک کرتے رہیں
+                    اس رپورٹ میں کسی بھی طرح کی غلطی یا کوتاہی ہوئی ہو تو میں دل سے معذرت خواہ ہوں
+                  </div>
+                  <div class="instructions-text">
+                    اللہ کی رضا کے لیے میری اس غلطی کو معاف فرمائیں
                   </div>
                 </div>
               </div>

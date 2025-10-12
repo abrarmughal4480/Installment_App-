@@ -89,6 +89,24 @@ const userSchema = new mongoose.Schema({
   previousLogin: {
     type: Date
   },
+  // Admin permissions (only for admin type users)
+  permissions: {
+    canViewData: {
+      type: Boolean,
+      default: false
+    },
+    canAddData: {
+      type: Boolean,
+      default: false
+    },
+    grantedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    grantedAt: {
+      type: Date
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -203,6 +221,49 @@ userSchema.methods.getProfitHistory = function(limit = 12) {
   return this.profitHistory
     .sort((a, b) => b.month.localeCompare(a.month))
     .slice(0, limit);
+};
+
+// Method to check if user is main admin
+userSchema.methods.isMainAdmin = function() {
+  return this.type === 'admin' && this.email === 'installmentadmin@app.com';
+};
+
+// Method to check if user has view permissions
+userSchema.methods.canViewData = function() {
+  return this.isMainAdmin() || (this.type === 'admin' && this.permissions?.canViewData === true);
+};
+
+// Method to check if user has add permissions
+userSchema.methods.canAddData = function() {
+  return this.isMainAdmin() || (this.type === 'admin' && this.permissions?.canAddData === true);
+};
+
+// Method to grant permissions to admin
+userSchema.methods.grantPermissions = function(grantedBy, canViewData = true, canAddData = true) {
+  if (this.type !== 'admin') {
+    throw new Error('Only admin users can have permissions granted');
+  }
+  
+  this.permissions = {
+    canViewData,
+    canAddData,
+    grantedBy,
+    grantedAt: new Date()
+  };
+  
+  return this.save();
+};
+
+// Method to revoke permissions
+userSchema.methods.revokePermissions = function() {
+  this.permissions = {
+    canViewData: false,
+    canAddData: false,
+    grantedBy: null,
+    grantedAt: null
+  };
+  
+  return this.save();
 };
 
 const User = mongoose.model('User', userSchema);

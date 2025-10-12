@@ -542,6 +542,8 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                 text-align: center;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin-top: 10px;
+                width: auto;
+                display: inline-block;
               }
               .balance-label {
                 font-size: 14px;
@@ -559,9 +561,10 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                 margin: 25px 0;
               }
               table.installment-table {
-                width: 100%;
+                width: auto;
                 border-collapse: collapse;
                 margin-bottom: 20px;
+                margin-left: 20px;
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -604,16 +607,16 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                 font-weight: bold;
                 color: #000;
                 margin-top: 12px;
+                margin-left: 20px;
               }
               .footer {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 35px;
                 margin-top: 30px;
                 padding-top: 15px;
               }
               .instructions {
                 text-align: right;
+                width: 50%;
+                margin-left: auto;
               }
               .instructions-title {
                 font-size: 14px;
@@ -721,17 +724,10 @@ export default function LoansSection({ colors }: LoansSectionProps) {
               </div>
 
               <div class="footer">
-                <div class="thank-you-section">
-                  <div class="thank-you-graphic">
-                    <div class="thank-you-text">THANKYOU</div>
-                    <div class="thank-you-urdu">شکریہ</div>
-                  </div>
-                </div>
-
                 <div class="instructions">
                   <div class="instructions-title">ESSENTIAL INSTRUCTION</div>
                   <div class="instructions-text">
-                    یہ رسید آپ کے قرض کی مکمل تفصیلات بشمول رقم لینے اور دین کی تاریخوں کے ساتھ فراہم کرتی ہے۔ براہ کرم ادائیگی مقررہ وقت پر ہر ماہ کی 10 تاریخ تک یقینی بنائیں
+                    یہ رسید آپ کے قرض کی مکمل تفصیلات بشمول رقم لینے اور دینے کی تاریخوں کے ساتھ فراہم کرتی ہے۔ براہ کرم ادائیگی مقررہ وقت پر ہر ماہ کی 10 تاریخ پر یقینی بنائیں
                   </div>
                 </div>
               </div>

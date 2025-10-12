@@ -1,19 +1,20 @@
 import express from 'express';
 import { getDashboardStats, addSampleData, getManagers, addManager, deleteManager, updateManager, getAllInstallments } from '../controllers/dashboardController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireViewPermission, requireAddPermission, requireMainAdmin } from '../middleware/permissions.js';
 
 const router = express.Router();
 
-// Dashboard routes (no authentication required for now)
-router.get('/stats', getDashboardStats);
-router.get('/managers', authenticateToken, getManagers);
-router.post('/managers', authenticateToken, addManager);
-router.put('/managers/:id', authenticateToken, updateManager);
-router.delete('/managers/:id', authenticateToken, deleteManager);
-router.post('/sample-data', addSampleData);
+// Dashboard routes with permission checks
+router.get('/stats', requireViewPermission, getDashboardStats);
+router.get('/managers', authenticateToken, requireViewPermission, getManagers);
+router.post('/managers', authenticateToken, requireAddPermission, addManager);
+router.put('/managers/:id', authenticateToken, requireAddPermission, updateManager);
+router.delete('/managers/:id', authenticateToken, requireAddPermission, deleteManager);
+router.post('/sample-data', requireMainAdmin, addSampleData);
 
-// Installments routes - requires authentication for role-based filtering
-router.get('/installments', authenticateToken, getAllInstallments);
+// Installments routes - requires view permission
+router.get('/installments', authenticateToken, requireViewPermission, getAllInstallments);
 
 // Test endpoint to verify data
 router.get('/test', (req, res) => {

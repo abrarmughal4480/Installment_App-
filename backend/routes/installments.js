@@ -11,6 +11,7 @@ import {
   getCustomerInstallments
 } from '../controllers/installmentController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireViewPermission, requireAddPermission } from '../middleware/permissions.js';
 
 const router = express.Router();
 
@@ -21,14 +22,14 @@ router.get('/details/:installmentId', getInstallment); // Get single installment
 // All other routes require authentication
 router.use(authenticateToken);
 
-// Installment routes
-router.get('/', getInstallments); // Get all installments (admin)
-router.get('/:installmentId', getInstallment); // Get single installment
-router.post('/', createInstallments); // Create installments for customer
-router.put('/:installmentId/pay', payInstallment); // Mark installment as paid
-router.put('/:installmentId/update-payment', updatePayment); // Update existing payment details
-router.put('/:installmentId/mark-unpaid', markInstallmentUnpaid); // Mark paid installment as unpaid
-router.put('/:installmentId', updateInstallment); // Update installment
-router.delete('/:installmentId', deleteInstallment); // Delete installment
+// Installment routes with permission checks
+router.get('/', requireViewPermission, getInstallments); // Get all installments (requires view permission)
+router.get('/:installmentId', requireViewPermission, getInstallment); // Get single installment (requires view permission)
+router.post('/', requireAddPermission, createInstallments); // Create installments for customer (requires add permission)
+router.put('/:installmentId/pay', requireAddPermission, payInstallment); // Mark installment as paid (requires add permission)
+router.put('/:installmentId/update-payment', requireAddPermission, updatePayment); // Update existing payment details (requires add permission)
+router.put('/:installmentId/mark-unpaid', requireAddPermission, markInstallmentUnpaid); // Mark paid installment as unpaid (requires add permission)
+router.put('/:installmentId', requireAddPermission, updateInstallment); // Update installment (requires add permission)
+router.delete('/:installmentId', requireAddPermission, deleteInstallment); // Delete installment (requires add permission)
 
 export default router;

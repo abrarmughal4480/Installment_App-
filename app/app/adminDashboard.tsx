@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiService } from '../services/apiService';
 import TokenService from '../services/tokenService';
 import { useToast } from '../contexts/ToastContext';
+import { usePermissions } from '../contexts/PermissionContext';
 import { Linking } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -41,10 +42,12 @@ import InvestorDashboard from '../components/InvestorDashboard';
 export default function AdminDashboard() {
   const router = useRouter();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { hasViewPermission, hasAddPermission, isMainAdmin, isLoading: permissionsLoading, refreshPermissions } = usePermissions();
   const [user, setUser] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastPermissionRefresh, setLastPermissionRefresh] = useState<number>(0);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'overdue' | 'completed'>('all');
@@ -179,14 +182,14 @@ export default function AdminDashboard() {
 
   
   useEffect(() => {
-    if (user) {
+    if (user && hasViewPermission()) {
       const interval = setInterval(() => {
         loadInstallments(false); 
       }, 5000); 
 
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, hasViewPermission]);
 
   
   useEffect(() => {
@@ -332,6 +335,22 @@ export default function AdminDashboard() {
           await clearUserData();
           router.replace('/');
           return;
+        }
+        
+        // Check if it's a permission denied error (403)
+        if ((response as any).message?.includes('Access denied') || (response as any).message?.includes('permission')) {
+          const now = Date.now();
+          // Only refresh permissions once every 5 seconds to prevent excessive refreshing
+          if (now - lastPermissionRefresh > 5000) {
+            console.log('🔒 Permission denied - refreshing permissions');
+            setLastPermissionRefresh(now);
+            // Refresh permissions when access is denied
+            if (refreshPermissions) {
+              await refreshPermissions();
+            }
+          } else {
+            console.log('🔒 Permission denied - skipping refresh (too recent)');
+          }
         }
         
         if (showLoader) {
@@ -932,6 +951,8 @@ export default function AdminDashboard() {
                 text-align: center;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin-top: 10px;
+                width: auto;
+                display: inline-block;
               }
               .balance-label {
                 font-size: 14px;
@@ -949,9 +970,10 @@ export default function AdminDashboard() {
                 margin: 25px 0;
               }
               table.installment-table {
-                width: 100%;
+                width: auto;
                 border-collapse: collapse;
                 margin-bottom: 20px;
+                margin-left: 20px;
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -996,14 +1018,13 @@ export default function AdminDashboard() {
                 margin-top: 12px;
               }
               .footer {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 35px;
                 margin-top: 30px;
                 padding-top: 15px;
               }
               .instructions {
                 text-align: right;
+                width: 50%;
+                margin-left: auto;
               }
               .instructions-title {
                 font-size: 14px;
@@ -1017,36 +1038,6 @@ export default function AdminDashboard() {
                 line-height: 1.5;
                 direction: rtl;
                 text-align: right;
-              }
-              .thank-you-section {
-                text-align: left;
-                position: relative;
-              }
-              .thank-you-graphic {
-                width: 120px;
-                height: 120px;
-                background: #e8f5e8;
-                border-radius: 50%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                position: relative;
-                border: 3px solid #4CAF50;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-              }
-              .thank-you-text {
-                font-size: 16px;
-                font-weight: bold;
-                color: #000;
-                font-style: italic;
-                margin-bottom: 4px;
-              }
-              .thank-you-urdu {
-                font-size: 14px;
-                font-weight: bold;
-                color: #000;
-                font-style: italic;
               }
             </style>
           </head>
@@ -1110,13 +1101,6 @@ export default function AdminDashboard() {
               </div>
 
               <div class="footer">
-                <div class="thank-you-section">
-                  <div class="thank-you-graphic">
-                    <div class="thank-you-text">THANKYOU</div>
-                    <div class="thank-you-urdu">شکریہ</div>
-                  </div>
-                </div>
-
                 <div class="instructions">
                   <div class="instructions-title">ESSENTIAL INSTRUCTION</div>
                   <div class="instructions-text">
@@ -1326,19 +1310,21 @@ export default function AdminDashboard() {
                   <View style={styles.revenueStats}>
                     <View style={styles.revenueItem}>
                       <Text style={styles.revenueLabel}>Total</Text>
-                      <Text style={styles.revenueValue}>{formatCurrency(stats.totalRevenue)}</Text>
+                      <Text style={styles.revenueValue}>
+                        {hasViewPermission() ? formatCurrency(stats.totalRevenue) : '****'}
+                      </Text>
                     </View>
                     <View style={styles.revenueRow}>
                       <View style={styles.revenueItem}>
                         <Text style={styles.revenueLabel}>Collected</Text>
                         <Text style={[styles.revenueValue, { color: '#4ECDC4' }]}>
-                          {formatCurrency(stats.collectedRevenue)}
+                          {hasViewPermission() ? formatCurrency(stats.collectedRevenue) : '****'}
                         </Text>
                       </View>
                       <View style={styles.revenueItem}>
                         <Text style={styles.revenueLabel}>Pending</Text>
                         <Text style={[styles.revenueValue, { color: '#FF6B6B' }]}>
-                          {formatCurrency(stats.pendingRevenue)}
+                          {hasViewPermission() ? formatCurrency(stats.pendingRevenue) : '****'}
                         </Text>
                       </View>
                     </View>
@@ -1349,8 +1335,21 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {/* Content Area - Show regular content for admin/manager users */}
-        {currentView === 'installments' ? (
+        {/* No Access Message for Admins without permissions */}
+        {user?.type === 'admin' && !hasViewPermission() && !permissionsLoading && (
+          <View style={[styles.emptyState, { backgroundColor: colors.cardBackground }]}>
+            <Ionicons name="lock-closed" size={48} color={colors.lightText} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              Access Restricted
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.lightText }]}>
+              You don't have permission to view data. Please contact the main admin to request access.
+            </Text>
+          </View>
+        )}
+
+        {/* Content Area - Show regular content for admin/manager users with permissions */}
+        {user?.type === 'admin' && hasViewPermission() && currentView === 'installments' ? (
           <>
             {/* Modern Filter Pills */}
             {(
@@ -1459,8 +1458,8 @@ export default function AdminDashboard() {
               >
                   <Ionicons name="search" size={18} color="#FFFFFF" />
               </TouchableOpacity>
-              {/* Only show Add button for admin users */}
-              {user?.type === 'admin' && (
+              {/* Only show Add button for admin users with add permission */}
+              {user?.type === 'admin' && hasAddPermission() && (
                 <TouchableOpacity
                   style={[styles.addButton, { backgroundColor: colors.primary }]}
                   onPress={() => setShowCreateModal(true)}
@@ -1564,8 +1563,8 @@ export default function AdminDashboard() {
                 </View>
               </View>
               
-              {/* Admin action buttons on new line */}
-              {user?.type === 'admin' && (
+              {/* Admin action buttons on new line - Only for admin users with add permission */}
+              {user?.type === 'admin' && hasAddPermission() && (
                 <View style={styles.adminActionsRow}>
                   <TouchableOpacity
                     style={[styles.cardActionButton, { backgroundColor: colors.primary }]}
@@ -1651,30 +1650,30 @@ export default function AdminDashboard() {
         )}
           </>
         ) : currentView === 'managers' ? (
-          /* Managers Section - Only for Admin */
-          user?.type === 'admin' && (
+          /* Managers Section - Only for Admin with view permission */
+          user?.type === 'admin' && hasViewPermission() && (
             <ManagersSection colors={colors} onManagerClick={handleManagerClick} />
           )
         ) : currentView === 'investors' ? (
-          /* Investors Section - Only for Admin */
-          user?.type === 'admin' && (
+          /* Investors Section - Only for Admin with view permission */
+          user?.type === 'admin' && hasViewPermission() && (
             <InvestorsSection colors={colors} />
           )
         ) : currentView === 'admins' ? (
-          /* Admins Section - Only for specific admin */
-          user?.type === 'admin' && user?.email === 'installmentadmin@app.com' && (
+          /* Admins Section - Only for main admin */
+          user?.type === 'admin' && isMainAdmin() && (
             <AdminsSection colors={colors} user={user} />
           )
         ) : (
-          /* Loans Section - Only for Admin */
-          user?.type === 'admin' && (
+          /* Loans Section - Only for Admin with view permission */
+          user?.type === 'admin' && hasViewPermission() && (
             <LoansSection colors={colors} />
           )
         )}
       </ScrollView>
 
-      {/* Bottom Navigation Bar - Only for Admin */}
-      {user?.type === 'admin' && (
+      {/* Bottom Navigation Bar - Only for Admin with view permission */}
+      {user?.type === 'admin' && hasViewPermission() && (
         <BottomNavBar 
           colors={colors}
           currentView={currentView}

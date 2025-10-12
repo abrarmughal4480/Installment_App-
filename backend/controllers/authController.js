@@ -1,3 +1,4 @@
+
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
@@ -812,6 +813,30 @@ export const getAdmins = async (req, res) => {
       .select('-password -otp -otpExpires')
       .sort({ createdAt: -1 });
 
+    // Log admin permissions status
+    console.log('🔐 Admin Permissions Status:');
+    console.log('================================');
+    
+    admins.forEach((admin, index) => {
+      const isMainAdmin = admin.email === 'installmentadmin@app.com';
+      const hasViewData = admin.permissions?.canViewData || false;
+      const hasAddData = admin.permissions?.canAddData || false;
+      const status = isMainAdmin ? 'MAIN ADMIN' : (hasViewData && hasAddData ? 'UNLOCKED' : 'LOCKED');
+      
+      console.log(`${index + 1}. ${admin.name || 'No Name'} (${admin.email})`);
+      console.log(`   Status: ${status}`);
+      console.log(`   Can View Data: ${hasViewData}`);
+      console.log(`   Can Add Data: ${hasAddData}`);
+      if (admin.permissions?.grantedBy) {
+        console.log(`   Granted By: ${admin.permissions.grantedBy}`);
+        console.log(`   Granted At: ${admin.permissions.grantedAt}`);
+      }
+      console.log('   ---');
+    });
+    
+    console.log(`📊 Total Admins: ${admins.length}`);
+    console.log('================================');
+
     res.json({
       success: true,
       admins: admins
@@ -915,6 +940,103 @@ export const updateAdminName = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update admin name' 
+    });
+  }
+};
+
+// Grant/revoke admin permissions (only for main admin)
+export const updateAdminPermissions = async (req, res) => {
+  try {
+    // Check if user is the main admin
+    if (req.user.type !== 'admin' || req.user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only main admin can manage permissions.' 
+      });
+    }
+
+    const { id } = req.params;
+    const { canViewData, canAddData } = req.body;
+
+    // Find the admin to update
+    const adminToUpdate = await User.findById(id);
+    if (!adminToUpdate) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Admin not found' 
+      });
+    }
+
+    // Prevent modifying main admin permissions
+    if (adminToUpdate.email === 'installmentadmin@app.com') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot modify main admin permissions' 
+      });
+    }
+
+    // Grant or revoke permissions
+    if (canViewData || canAddData) {
+      await adminToUpdate.grantPermissions(req.user.userId, canViewData, canAddData);
+      res.json({
+        success: true,
+        message: 'Admin permissions granted successfully'
+      });
+    } else {
+      await adminToUpdate.revokePermissions();
+      res.json({
+        success: true,
+        message: 'Admin permissions revoked successfully'
+      });
+    }
+  } catch (error) {
+    console.error('Update admin permissions error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update admin permissions' 
+    });
+  }
+};
+
+// Get current user's permissions
+export const getMyPermissions = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Main admin has all permissions
+    if (user.isMainAdmin()) {
+      return res.json({
+        success: true,
+        permissions: {
+          canViewData: true,
+          canAddData: true,
+          isMainAdmin: true
+        }
+      });
+    }
+
+    // Return admin permissions
+    res.json({
+      success: true,
+      permissions: {
+        canViewData: user.canViewData(),
+        canAddData: user.canAddData(),
+        isMainAdmin: false,
+        grantedBy: user.permissions?.grantedBy,
+        grantedAt: user.permissions?.grantedAt
+      }
+    });
+  } catch (error) {
+    console.error('Get permissions error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get permissions' 
     });
   }
 };

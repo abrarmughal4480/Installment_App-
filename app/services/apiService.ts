@@ -270,6 +270,28 @@ class ApiService {
     });
   }
 
+  async updateAdminPermissions(adminId: string, canViewData: boolean, canAddData: boolean): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/auth/admins/${adminId}/permissions`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ canViewData, canAddData }),
+    });
+  }
+
+  async getMyPermissions(): Promise<{ success: boolean; permissions: any }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/auth/my-permissions', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
   // OTP Methods
   async sendOTP(email: string, name?: string): Promise<OTPResponse> {
     return this.request('/api/auth/send-otp', {

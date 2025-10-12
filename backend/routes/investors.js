@@ -11,37 +11,38 @@ import {
   distributeProfits
 } from '../controllers/investorController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireViewPermission, requireAddPermission, requireMainAdmin } from '../middleware/permissions.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
 
-// GET /api/investors - Get all investors
-router.get('/', getInvestors);
+// GET /api/investors - Get all investors (requires view permission)
+router.get('/', requireViewPermission, getInvestors);
 
-// POST /api/investors - Add new investor
-router.post('/', addInvestor);
+// POST /api/investors - Add new investor (requires add permission)
+router.post('/', requireAddPermission, addInvestor);
 
-// GET /api/investors/dashboard - Get investor dashboard data
-router.get('/dashboard', getInvestorDashboard);
+// GET /api/investors/dashboard - Get investor dashboard data (requires view permission)
+router.get('/dashboard', requireViewPermission, getInvestorDashboard);
 
-// GET /api/investors/profit-history - Get investor profit history
-router.get('/profit-history', getInvestorProfitHistory);
+// GET /api/investors/profit-history - Get investor profit history (requires view permission)
+router.get('/profit-history', requireViewPermission, getInvestorProfitHistory);
 
-// POST /api/investors/update-profit - Update monthly profit (admin only)
-router.post('/update-profit', updateMonthlyProfit);
+// POST /api/investors/update-profit - Update monthly profit (main admin only)
+router.post('/update-profit', requireMainAdmin, updateMonthlyProfit);
 
-// GET /api/investors/:id - Get investor by ID
-router.get('/:id', getInvestorById);
+// GET /api/investors/:id - Get investor by ID (requires view permission)
+router.get('/:id', requireViewPermission, getInvestorById);
 
-// PUT /api/investors/:id - Update investor
-router.put('/:id', updateInvestor);
+// PUT /api/investors/:id - Update investor (requires add permission)
+router.put('/:id', requireAddPermission, updateInvestor);
 
-// DELETE /api/investors/:id - Delete investor
-router.delete('/:id', deleteInvestor);
+// DELETE /api/investors/:id - Delete investor (requires add permission)
+router.delete('/:id', requireAddPermission, deleteInvestor);
 
-// POST /api/investors/distribute-profits - Distribute profits among investors
-router.post('/distribute-profits', distributeProfits);
+// POST /api/investors/distribute-profits - Distribute profits among investors (main admin only)
+router.post('/distribute-profits', requireMainAdmin, distributeProfits);
 
 export default router;

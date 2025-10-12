@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { ToastProvider } from '../contexts/ToastContext';
+import { PermissionProvider } from '../contexts/PermissionContext';
 
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -111,29 +112,31 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <ToastProvider>
-          <View style={{ flex: 1, height: availableHeight }} onLayout={onLayoutRootView}>
+        <PermissionProvider>
+          <ToastProvider>
+            <View style={{ flex: 1, height: availableHeight }} onLayout={onLayoutRootView}>
 
-          {isLoggedIn ? (
-            userType === 'admin' ? <Redirect href="/adminDashboard" /> : 
-            userType === 'manager' ? <Redirect href="/adminDashboard" /> :
-            userType === 'investor' ? <Redirect href="/investorDashboard" /> :
-            <Redirect href="/installments" />
-          ) : <Redirect href="/" />}
+            {isLoggedIn ? (
+              userType === 'admin' ? <Redirect href="/adminDashboard" /> : 
+              userType === 'manager' ? <Redirect href="/adminDashboard" /> :
+              userType === 'investor' ? <Redirect href="/investorDashboard" /> :
+              <Redirect href="/installments" />
+            ) : <Redirect href="/" />}
 
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ title: 'Landing Page', headerShown: false }} />
-            <Stack.Screen name="installments" options={{ title: 'My Installments', headerShown: false }} />
-            <Stack.Screen name="paymentHistory" options={{ title: 'Payment History', headerShown: false }} />
-            <Stack.Screen name="adminDashboard" options={{ title: 'Admin Dashboard', headerShown: false }} />
-            <Stack.Screen name="investorDashboard" options={{ title: 'Investor Dashboard', headerShown: false }} />
-            <Stack.Screen name="createInstallment" options={{ title: 'Create Installment', headerShown: false }} />
-            <Stack.Screen name="installmentDetails" options={{ title: 'Installment Details', headerShown: false }} />
-          </Stack>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ title: 'Landing Page', headerShown: false }} />
+              <Stack.Screen name="installments" options={{ title: 'My Installments', headerShown: false }} />
+              <Stack.Screen name="paymentHistory" options={{ title: 'Payment History', headerShown: false }} />
+              <Stack.Screen name="adminDashboard" options={{ title: 'Admin Dashboard', headerShown: false }} />
+              <Stack.Screen name="investorDashboard" options={{ title: 'Investor Dashboard', headerShown: false }} />
+              <Stack.Screen name="createInstallment" options={{ title: 'Create Installment', headerShown: false }} />
+              <Stack.Screen name="installmentDetails" options={{ title: 'Installment Details', headerShown: false }} />
+            </Stack>
 
-          <StatusBar style="auto" />
-          </View>
-        </ToastProvider>
+            <StatusBar style="auto" />
+            </View>
+          </ToastProvider>
+        </PermissionProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

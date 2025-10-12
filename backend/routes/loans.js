@@ -10,34 +10,35 @@ import {
   getLoanStats
 } from '../controllers/loanController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireViewPermission, requireAddPermission, requireMainAdmin } from '../middleware/permissions.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
 
-// Get all loans (admin only)
-router.get('/', getLoans);
+// Get all loans (requires view permission)
+router.get('/', requireViewPermission, getLoans);
 
-// Get loan statistics (admin only)
-router.get('/stats', getLoanStats);
+// Get loan statistics (requires view permission)
+router.get('/stats', requireViewPermission, getLoanStats);
 
-// Get loans by investor ID
-router.get('/investor/:investorId', getLoansByInvestor);
+// Get loans by investor ID (requires view permission)
+router.get('/investor/:investorId', requireViewPermission, getLoansByInvestor);
 
-// Get loan by ID
-router.get('/:id', getLoanById);
+// Get loan by ID (requires view permission)
+router.get('/:id', requireViewPermission, getLoanById);
 
-// Add new loan (admin only)
-router.post('/', addLoan);
+// Add new loan (requires add permission)
+router.post('/', requireAddPermission, addLoan);
 
-// Update loan (admin only)
-router.put('/:id', updateLoan);
+// Update loan (requires add permission)
+router.put('/:id', requireAddPermission, updateLoan);
 
-// Add payment to loan (admin only)
-router.post('/:id/payment', addLoanPayment);
+// Add payment to loan (requires add permission)
+router.post('/:id/payment', requireAddPermission, addLoanPayment);
 
-// Delete loan (admin only)
-router.delete('/:id', deleteLoan);
+// Delete loan (requires add permission)
+router.delete('/:id', requireAddPermission, deleteLoan);
 
 export default router;
