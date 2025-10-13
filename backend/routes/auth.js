@@ -14,7 +14,8 @@ import {
   deleteAdmin,
   updateAdminName,
   updateAdminPermissions,
-  getMyPermissions
+  getMyPermissions,
+  resetAdminPassword
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -36,6 +37,7 @@ router.post('/add-admin', authenticateToken, addAdmin); // Add new admin
 router.get('/admins', authenticateToken, getAdmins); // Get all admins
 router.delete('/admins/:id', authenticateToken, deleteAdmin); // Delete admin
 router.put('/admins/:id/name', authenticateToken, updateAdminName); // Update admin name
+router.put('/admins/:id/password', authenticateToken, resetAdminPassword); // Reset admin password
 router.put('/admins/:id/permissions', authenticateToken, updateAdminPermissions); // Grant/revoke admin permissions
 router.get('/my-permissions', authenticateToken, getMyPermissions); // Get current user's permissions
 export default router;

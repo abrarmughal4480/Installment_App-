@@ -422,7 +422,7 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({ installment, isOpen, onClos
               <div className="header">
                 <div className="logo-section">
                   <div>
-                    <div className="logo-text">APNA BUSINESS</div>
+                    <div className="logo-text">APNA BUSINESS 12</div>
                     <div className="logo-subtitle">INNOVATE. SUSTAIN. PROSPER.</div>
                   </div>
                 </div>

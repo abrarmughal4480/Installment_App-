@@ -116,7 +116,7 @@ export default function Header({ onAddManager, activeTab, onTabChange, onOpenCha
               letterSpacing: '-0.3px'
             }}
           >
-            Installment Manager
+            Apna Bussiness 12
           </h1>
         </div>
 

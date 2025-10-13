@@ -226,7 +226,7 @@ class ApiService {
     });
   }
 
-  async addAdmin(email: string, name?: string): Promise<{ success: boolean; message: string }> {
+  async addAdmin(email: string, name?: string, password?: string): Promise<{ success: boolean; message: string; adminId?: string }> {
     const token = await TokenService.getToken();
     return this.request('/api/auth/add-admin', {
       method: 'POST',
@@ -234,7 +234,7 @@ class ApiService {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email, name, password }),
     });
   }
 
@@ -267,6 +267,18 @@ class ApiService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ name }),
+    });
+  }
+
+  async resetAdminPassword(adminId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/auth/admins/${adminId}/password`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ newPassword }),
     });
   }
 

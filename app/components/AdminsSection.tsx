@@ -68,6 +68,9 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
   // Edit name loading state
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   
+  // Edit password loading state
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  
   // Permission management loading state
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState<string | null>(null);
   
@@ -78,6 +81,8 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
     newEmail: '',
     newPassword: '',
     confirmPassword: '',
+    editPassword: '',
+    editConfirmPassword: '',
   });
   
   // Confirmation modal state
@@ -224,6 +229,8 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
       newEmail: '',
       newPassword: '',
       confirmPassword: '',
+      editPassword: '',
+      editConfirmPassword: '',
     });
     
     // Directly open name edit modal
@@ -286,13 +293,28 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
       return;
     }
 
+    if (!formData.newPassword.trim()) {
+      showError('Please enter a password');
+      return;
+    }
+
+    if (formData.newPassword.length < 6) {
+      showError('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      showError('Passwords do not match');
+      return;
+    }
+
     try {
-      const response = await apiService.addAdmin(formData.email.trim(), formData.name.trim());
+      const response = await apiService.addAdmin(formData.email.trim(), formData.name.trim(), formData.newPassword.trim());
       
       if (response.success) {
-        setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
+        setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
         setShowAddAdminModal(false);
-        showSuccess('Admin created successfully! Password sent to email.');
+        showSuccess('Admin created successfully with default permissions!');
         loadAdmins(false); // Refresh the list
       } else {
         showError(response.message || 'Failed to create admin');
@@ -594,7 +616,7 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                 </View>
                 <View style={styles.headerText}>
                   <Text style={[styles.modalTitle, { color: colors.text }]}>
-                    Edit Admin Name
+                    Edit Admin
                   </Text>
                   <Text style={[styles.managerName, { color: colors.lightText }]}>
                     {selectedAdmin?.name}
@@ -604,8 +626,9 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
               <TouchableOpacity
                 onPress={() => {
                   setShowEditInfoModal(false);
-                  setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
+                  setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                   setIsUpdatingName(false);
+                  setIsUpdatingPassword(false);
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.border }]}
               >
@@ -614,7 +637,11 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
             </View>
             
             {/* Form Content */}
-            <View style={styles.formContainer}>
+            <ScrollView 
+              style={styles.formContainer}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
+            >
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Admin Name</Text>
                 <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -629,7 +656,39 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                   />
                 </View>
               </View>
-            </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    value={formData.editPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, editPassword: text }))}
+                    placeholder="Enter new password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    value={formData.editConfirmPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, editConfirmPassword: text }))}
+                    placeholder="Confirm new password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+            </ScrollView>
             
             <View style={styles.modalFooter}>
               <View style={styles.buttonRow}>
@@ -637,8 +696,9 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                   style={[styles.cancelButton, { backgroundColor: colors.border }]}
                   onPress={() => {
                     setShowEditInfoModal(false);
-                    setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
+                    setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                     setIsUpdatingName(false);
+                    setIsUpdatingPassword(false);
                   }}
                   activeOpacity={0.7}
                 >
@@ -648,8 +708,8 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                   style={[
                     styles.saveButton, 
                     { 
-                      backgroundColor: isUpdatingName ? colors.lightText : colors.primary,
-                      opacity: isUpdatingName ? 0.7 : 1
+                      backgroundColor: (isUpdatingName || isUpdatingPassword) ? colors.lightText : colors.primary,
+                      opacity: (isUpdatingName || isUpdatingPassword) ? 0.7 : 1
                     }
                   ]}
                   onPress={async () => {
@@ -663,29 +723,56 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                       return;
                     }
 
+                    // Validate password if provided
+                    if (formData.editPassword.trim()) {
+                      if (formData.editPassword.length < 6) {
+                        showError('Password must be at least 6 characters long');
+                        return;
+                      }
+                      if (formData.editPassword !== formData.editConfirmPassword) {
+                        showError('Passwords do not match');
+                        return;
+                      }
+                    }
+
                     try {
                       setIsUpdatingName(true);
-                      const response = await apiService.updateAdminName(selectedAdmin._id, formData.name.trim());
+                      setIsUpdatingPassword(true);
                       
-                      if (response.success) {
-                        showSuccess('Admin name updated successfully');
-                        setShowEditInfoModal(false);
-                        setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
-                        loadAdmins(false); // Refresh the list
-                      } else {
-                        showError(response.message || 'Failed to update admin name');
+                      // Update name
+                      const nameResponse = await apiService.updateAdminName(selectedAdmin._id, formData.name.trim());
+                      
+                      if (!nameResponse.success) {
+                        showError(nameResponse.message || 'Failed to update admin name');
+                        return;
                       }
+
+                      // Update password if provided
+                      if (formData.editPassword.trim()) {
+                        const passwordResponse = await apiService.resetAdminPassword(selectedAdmin._id, formData.editPassword.trim());
+                        
+                        if (!passwordResponse.success) {
+                          showError(passwordResponse.message || 'Failed to update password');
+                          return;
+                        }
+                      }
+
+                      showSuccess('Admin updated successfully');
+                      setShowEditInfoModal(false);
+                      setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
+                      loadAdmins(false); // Refresh the list
                     } catch (error) {
-                      showError('Failed to update admin name. Please try again.');
+                      showError('Failed to update admin. Please try again.');
                     } finally {
                       setIsUpdatingName(false);
+                      setIsUpdatingPassword(false);
                     }
                   }}
                   activeOpacity={0.7}
-                  disabled={isUpdatingName}
+                  disabled={isUpdatingName || isUpdatingPassword}
                 >
                   <Text style={styles.saveButtonText}>
-                    {isUpdatingName ? 'Updating...' : 'Save Changes'}
+                    {(isUpdatingName || isUpdatingPassword) ? 'Updating...' : 'Save Changes'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -721,7 +808,7 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
               <TouchableOpacity
                 onPress={() => {
                   setShowAddAdminModal(false);
-                  setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
+                  setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.border }]}
               >
@@ -730,7 +817,11 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
             </View>
             
             {/* Form Content */}
-            <View style={styles.formContainer}>
+            <ScrollView 
+              style={styles.formContainer}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
+            >
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Admin Name</Text>
                 <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -762,13 +853,38 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                 </View>
               </View>
               
-              <View style={styles.warningContainer}>
-                <Ionicons name="information-circle" size={16} color={colors.warning} />
-                <Text style={[styles.warningText, { color: colors.lightText }]}>
-                  A temporary password will be sent to this email address. The admin can change it after first login.
-                </Text>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    value={formData.newPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
+                    placeholder="Enter password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
               </View>
-            </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
+                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <TextInput
+                    style={[styles.textInput, { color: colors.text }]}
+                    value={formData.confirmPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
+                    placeholder="Confirm password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+            </ScrollView>
             
             <View style={styles.modalFooter}>
               <View style={styles.buttonRow}>
@@ -776,7 +892,7 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
                   style={[styles.cancelButton, { backgroundColor: colors.border }]}
                   onPress={() => {
                     setShowAddAdminModal(false);
-                    setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '' });
+                    setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                   }}
                   activeOpacity={0.7}
                 >
@@ -1034,7 +1150,9 @@ const styles = StyleSheet.create({
   },
   editModalContainer: {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 400,
+    maxHeight: '90%',
+    minHeight: 200,
     borderRadius: 24,
     overflow: 'hidden',
     elevation: 15,
@@ -1139,6 +1257,7 @@ const styles = StyleSheet.create({
   formContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+    flexGrow: 1,
   },
   inputGroup: {
     marginBottom: 16,

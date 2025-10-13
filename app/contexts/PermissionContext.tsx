@@ -36,6 +36,8 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       
       // First get user profile to check if main admin
       const profileResponse = await apiService.getProfile();
+      console.log('📋 Profile response:', profileResponse);
+      
       if (profileResponse.success && profileResponse.user) {
         const user = profileResponse.user;
         console.log('👤 Current user:', user.email, user.type);
@@ -50,12 +52,21 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
           });
           setIsLoading(false);
           return;
+        } else {
+          console.log('👤 Regular admin user - will fetch permissions from API');
         }
+      } else {
+        console.log('❌ Failed to get user profile:', profileResponse);
+        throw new Error('Failed to get user profile');
       }
       
       // For non-main admin users, get permissions from API
       console.log('📡 Fetching permissions from API...');
+      console.log('📡 About to call apiService.getMyPermissions()...');
       const response = await apiService.getMyPermissions();
+      console.log('📡 getMyPermissions call completed');
+      
+      console.log('📡 getMyPermissions response:', response);
       
       if (response.success) {
         console.log('✅ Permissions loaded:', response.permissions);
@@ -83,11 +94,25 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   };
 
   const hasViewPermission = (): boolean => {
-    return permissions?.canViewData === true || permissions?.isMainAdmin === true;
+    const result = permissions?.canViewData === true || permissions?.isMainAdmin === true;
+    console.log('🔍 hasViewPermission check:', {
+      permissions,
+      canViewData: permissions?.canViewData,
+      isMainAdmin: permissions?.isMainAdmin,
+      result
+    });
+    return result;
   };
 
   const hasAddPermission = (): boolean => {
-    return permissions?.canAddData === true || permissions?.isMainAdmin === true;
+    const result = permissions?.canAddData === true || permissions?.isMainAdmin === true;
+    console.log('🔍 hasAddPermission check:', {
+      permissions,
+      canAddData: permissions?.canAddData,
+      isMainAdmin: permissions?.isMainAdmin,
+      result
+    });
+    return result;
   };
 
   const isMainAdmin = (): boolean => {
@@ -104,6 +129,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   };
 
   useEffect(() => {
+    console.log('🚀 PermissionContext useEffect triggered - loading permissions');
     loadPermissions();
   }, []);
 

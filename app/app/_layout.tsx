@@ -90,11 +90,9 @@ export default function RootLayout() {
       if (userType === 'investor') {
         // Load investor dashboard data
         await apiService.getInvestorDashboard();
-      } else if (userType === 'admin' || userType === 'manager') {
-        // Load admin/manager dashboard data
-        const isAdmin = userType === 'admin';
-        await apiService.getInstallments('', isAdmin);
       }
+      // Note: Admin/manager data loading is now handled by the dashboard components
+      // to ensure proper permission checking
     } catch (error) {
       console.log('Error loading role-specific data:', error);
       // Continue anyway - don't block the app

@@ -731,7 +731,7 @@ export const checkAddAdminPermission = async (req, res) => {
 export const addAdmin = async (req, res) => {
   try {
     const user = req.user;
-    const { email, name } = req.body;
+    const { email, name, password } = req.body;
     
     // Check if user has permission to add admins
     if (user.type !== 'admin' || user.email !== 'installmentadmin@app.com') {
@@ -749,6 +749,21 @@ export const addAdmin = async (req, res) => {
       });
     }
     
+    // Validate password
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+    
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -758,35 +773,31 @@ export const addAdmin = async (req, res) => {
       });
     }
     
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-    
-    // Hash the temporary password
+    // Hash the password
     const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(tempPassword, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
     
-    // Create new admin user
+    // Create new admin user with permissions
     const newAdmin = new User({
       name: name || email.split('@')[0], // Use provided name or email prefix as default
       email: email.toLowerCase(),
       password: hashedPassword,
       type: 'admin',
-      isActive: true
+      isActive: true,
+      permissions: {
+        canViewData: true,
+        canAddData: true,
+        grantedBy: user._id,
+        grantedAt: new Date()
+      }
     });
     
     await newAdmin.save();
     
-    // Send email with temporary password
-    try {
-      await emailService.sendAdminCredentials(email, tempPassword);
-    } catch (emailError) {
-      console.error('Failed to send admin credentials email:', emailError);
-      // Don't fail the request if email fails, just log it
-    }
-    
     res.status(201).json({
       success: true,
-      message: 'Admin created successfully. Temporary password sent to email.'
+      message: 'Admin created successfully.',
+      adminId: newAdmin._id
     });
     
   } catch (error) {
@@ -892,6 +903,74 @@ export const deleteAdmin = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to delete admin' 
+    });
+  }
+};
+
+// Reset admin password (only for main admin)
+export const resetAdminPassword = async (req, res) => {
+  try {
+    // Check if user is the main admin
+    if (req.user.type !== 'admin' || req.user.email !== 'installmentadmin@app.com') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only main admin can reset admin passwords.' 
+      });
+    }
+
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    // Validate password
+    if (!newPassword || !newPassword.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'New password is required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters long' 
+      });
+    }
+
+    // Find the admin to update
+    const adminToUpdate = await User.findById(id);
+    if (!adminToUpdate) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Admin not found' 
+      });
+    }
+
+    // Prevent resetting main admin password
+    if (adminToUpdate.email === 'installmentadmin@app.com') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot reset main admin password' 
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    adminToUpdate.password = hashedPassword;
+    adminToUpdate.updatedAt = new Date();
+    await adminToUpdate.save();
+
+    res.json({
+      success: true,
+      message: 'Admin password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset admin password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to reset admin password' 
     });
   }
 };

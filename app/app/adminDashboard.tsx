@@ -42,7 +42,7 @@ import InvestorDashboard from '../components/InvestorDashboard';
 export default function AdminDashboard() {
   const router = useRouter();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
-  const { hasViewPermission, hasAddPermission, isMainAdmin, isLoading: permissionsLoading, refreshPermissions } = usePermissions();
+  const { hasViewPermission, hasAddPermission, isMainAdmin, isLoading: permissionsLoading, refreshPermissions, permissions } = usePermissions();
   const [user, setUser] = useState<any>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -175,21 +175,37 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && !permissionsLoading && hasViewPermission()) {
+      console.log('🔄 Loading installments after user and permissions confirmed');
       loadInstallments();
+    } else if (user && !permissionsLoading && !hasViewPermission()) {
+      console.log('❌ No view permission - cannot load installments');
+      console.log('🔍 Permission debug info:', {
+        user: user?.email,
+        permissionsLoading,
+        hasViewPermission: hasViewPermission(),
+        permissions: permissions
+      });
+      showError('You do not have permission to view this data');
+    } else {
+      console.log('⏳ Waiting for user or permissions to load:', {
+        user: user?.email,
+        permissionsLoading,
+        hasViewPermission: hasViewPermission()
+      });
     }
-  }, [user]);
+  }, [user, permissionsLoading, hasViewPermission]);
 
   
   useEffect(() => {
-    if (user && hasViewPermission()) {
+    if (user && !permissionsLoading && hasViewPermission()) {
       const interval = setInterval(() => {
         loadInstallments(false); 
       }, 5000); 
 
       return () => clearInterval(interval);
     }
-  }, [user, hasViewPermission]);
+  }, [user, permissionsLoading, hasViewPermission]);
 
   
   useEffect(() => {
@@ -1046,7 +1062,7 @@ export default function AdminDashboard() {
               <div class="header">
                 <div class="logo-section">
                   <div>
-                    <div class="logo-text">APNA BUSINESS</div>
+                    <div class="logo-text">APNA BUSINESS 12</div>
                     <div class="logo-subtitle">INNOVATE. SUSTAIN. PROSPER.</div>
                   </div>
                 </div>

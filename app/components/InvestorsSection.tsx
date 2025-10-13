@@ -633,7 +633,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
               <div class="header">
                 <div class="logo-section">
                   <div>
-                    <div class="logo-text">APNA BUSINESS</div>
+                    <div class="logo-text">APNA BUSINESS 12</div>
                     <div class="logo-subtitle">INNOVATE. SUSTAIN. PROSPER.</div>
                   </div>
                 </div>
