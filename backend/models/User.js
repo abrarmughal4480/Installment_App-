@@ -230,12 +230,34 @@ userSchema.methods.isMainAdmin = function() {
 
 // Method to check if user has view permissions
 userSchema.methods.canViewData = function() {
-  return this.isMainAdmin() || (this.type === 'admin' && this.permissions?.canViewData === true);
+  // Main admin always has permissions
+  if (this.isMainAdmin()) {
+    return true;
+  }
+  
+  // For admin users, check if they have been granted view permissions
+  if (this.type === 'admin') {
+    return this.permissions?.canViewData === true;
+  }
+  
+  // Investors and managers don't need special permissions for their own data
+  return true;
 };
 
 // Method to check if user has add permissions
 userSchema.methods.canAddData = function() {
-  return this.isMainAdmin() || (this.type === 'admin' && this.permissions?.canAddData === true);
+  // Main admin always has permissions
+  if (this.isMainAdmin()) {
+    return true;
+  }
+  
+  // For admin users, check if they have been granted add permissions
+  if (this.type === 'admin') {
+    return this.permissions?.canAddData === true;
+  }
+  
+  // Investors and managers don't need special permissions for basic operations
+  return true;
 };
 
 // Method to grant permissions to admin

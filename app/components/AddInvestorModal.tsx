@@ -27,6 +27,7 @@ export default function AddInvestorModal({
 }: AddInvestorModalProps) {
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -115,6 +116,7 @@ export default function AddInvestorModal({
           investmentAmount: '', 
           monthlyProfit: '' 
         });
+        setShowPassword(false);
         onSuccess();
         onClose();
       } else {
@@ -137,6 +139,7 @@ export default function AddInvestorModal({
       investmentAmount: '', 
       monthlyProfit: '' 
     });
+    setShowPassword(false);
     onClose();
   };
 
@@ -234,18 +237,35 @@ export default function AddInvestorModal({
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Password <Text style={{ color: colors.danger }}>*</Text>
               </Text>
-              <TextInput
-                style={[styles.inputContainer, styles.textInput, { 
-                  backgroundColor: colors.background, 
-                  borderColor: colors.border, 
-                  color: colors.text 
-                }]}
-                value={formData.password}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
-                placeholder="Enter password (min 6 characters)"
-                placeholderTextColor={colors.lightText}
-                secureTextEntry={true}
-              />
+              <View style={[styles.inputContainer, { 
+                backgroundColor: colors.background, 
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center'
+              }]}>
+                <TextInput
+                  style={[styles.textInput, { 
+                    color: colors.text,
+                    flex: 1
+                  }]}
+                  value={formData.password}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
+                  placeholder="Enter password (min 6 characters)"
+                  placeholderTextColor={colors.lightText}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color={colors.lightText}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -438,6 +458,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
+  },
+  eyeButton: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

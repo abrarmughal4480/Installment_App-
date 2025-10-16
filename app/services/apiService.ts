@@ -469,6 +469,28 @@ class ApiService {
     });
   }
 
+  async markInstallmentUnpaid(installmentId: string, installmentNumber: number): Promise<{ 
+    success: boolean; 
+    message: string; 
+    installment?: any;
+    distribution?: {
+      originalPaidAmount: number;
+      distributedTo: number;
+      amountPerInstallment: number;
+      message: string;
+    };
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/installments/${installmentId}/mark-unpaid`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`,
+      },
+      body: JSON.stringify({ installmentNumber }),
+    });
+  }
+
   // Get customer installments (public endpoint - no auth required)
   async getCustomerInstallments(customerId: string): Promise<{
     success: boolean;
@@ -559,6 +581,7 @@ class ApiService {
     name: string;
     email: string;
     phone?: string;
+    password: string;
   }): Promise<{
     success: boolean;
     message?: string;

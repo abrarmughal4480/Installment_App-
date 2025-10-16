@@ -17,6 +17,17 @@ export const requireViewPermission = async (req, res, next) => {
       });
     }
 
+    // Main admin bypasses all permission checks
+    if (user.isMainAdmin()) {
+      console.log('✅ MAIN ADMIN - Bypassing permission checks');
+      req.userPermissions = {
+        canViewData: true,
+        canAddData: true,
+        isMainAdmin: true
+      };
+      return next();
+    }
+
     console.log('🔍 User permissions:', {
       canViewData: user.canViewData(),
       canAddData: user.canAddData(),
@@ -64,6 +75,17 @@ export const requireAddPermission = async (req, res, next) => {
       });
     }
 
+    // Main admin bypasses all permission checks
+    if (user.isMainAdmin()) {
+      console.log('✅ MAIN ADMIN - Bypassing add permission checks');
+      req.userPermissions = {
+        canViewData: true,
+        canAddData: true,
+        isMainAdmin: true
+      };
+      return next();
+    }
+
     // Check if user can add data
     if (!user.canAddData()) {
       return res.status(403).json({
@@ -108,6 +130,13 @@ export const requireMainAdmin = async (req, res, next) => {
         message: 'Access denied. Only main admin can perform this action.'
       });
     }
+
+    // Main admin has all permissions
+    req.userPermissions = {
+      canViewData: true,
+      canAddData: true,
+      isMainAdmin: true
+    };
 
     next();
   } catch (error) {

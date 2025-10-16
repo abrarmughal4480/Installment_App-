@@ -59,6 +59,10 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
   // Reset password loading state
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   
+  // Password visibility states
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   // Form input states
   const [formData, setFormData] = useState({
     name: '',
@@ -796,26 +800,72 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
             <View style={styles.formContainer}>
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
-                <TextInput
-                  style={[styles.inputContainer, styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-                  value={formData.newPassword}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
-                  placeholder="Enter new password"
-                  placeholderTextColor={colors.lightText}
-                  secureTextEntry={true}
-                />
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
+                    value={formData.newPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
+                    placeholder="Enter new password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={!showNewPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showNewPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <View style={styles.inputGroupLast}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
-                <TextInput
-                  style={[styles.inputContainer, styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-                  value={formData.confirmPassword}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
-                  placeholder="Confirm new password"
-                  placeholderTextColor={colors.lightText}
-                  secureTextEntry={true}
-                />
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
+                    value={formData.confirmPassword}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
+                    placeholder="Confirm new password"
+                    placeholderTextColor={colors.lightText}
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
             
@@ -1320,5 +1370,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  eyeButton: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

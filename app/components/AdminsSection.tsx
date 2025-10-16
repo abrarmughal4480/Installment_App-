@@ -74,6 +74,12 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
   // Permission management loading state
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState<string | null>(null);
   
+  // Password visibility states
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  
   // Form input states
   const [formData, setFormData] = useState({
     name: '',
@@ -659,33 +665,71 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
               
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
                   <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
                     value={formData.editPassword}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, editPassword: text }))}
                     placeholder="Enter new password"
                     placeholderTextColor={colors.lightText}
-                    secureTextEntry={true}
+                    secureTextEntry={!showEditPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowEditPassword(!showEditPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showEditPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
               
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
                   <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
                     value={formData.editConfirmPassword}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, editConfirmPassword: text }))}
                     placeholder="Confirm new password"
                     placeholderTextColor={colors.lightText}
-                    secureTextEntry={true}
+                    secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
             </ScrollView>
@@ -855,33 +899,71 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
               
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
                   <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
                     value={formData.newPassword}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
                     placeholder="Enter password"
                     placeholderTextColor={colors.lightText}
-                    secureTextEntry={true}
+                    secureTextEntry={!showNewPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showNewPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
               
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
-                <View style={[styles.inputContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }]}>
                   <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
+                    style={[styles.textInput, { 
+                      color: colors.text,
+                      flex: 1
+                    }]}
                     value={formData.confirmPassword}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
                     placeholder="Confirm password"
                     placeholderTextColor={colors.lightText}
-                    secureTextEntry={true}
+                    secureTextEntry={!showConfirmNewPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showConfirmNewPassword ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.lightText}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
             </ScrollView>
@@ -1342,5 +1424,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 18,
     flex: 1,
+  },
+  eyeButton: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

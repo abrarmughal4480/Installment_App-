@@ -10,8 +10,10 @@ import {
   StatusBar,
   Animated,
   Keyboard,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import TokenService from '../services/tokenService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +40,7 @@ export default function CreateInstallment() {
     email: '',
     phone: '',
     address: '',
+    reference: '',
     managerId: '',
     productName: '',
     productDescription: '',
@@ -56,6 +59,10 @@ export default function CreateInstallment() {
   const [selectedManager, setSelectedManager] = useState<any>(null);
   const [managerSearchQuery, setManagerSearchQuery] = useState('');
   const [isManagerSearchFocused, setIsManagerSearchFocused] = useState(false);
+  
+  // Date picker states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [selectedStartDate, setSelectedStartDate] = useState(new Date());
 
   
   const dot1Opacity = useRef(new Animated.Value(0.3)).current;
@@ -283,6 +290,7 @@ export default function CreateInstallment() {
       email: params.customerEmail as string || '',
       phone: params.customerPhone as string || '',
       address: params.customerAddress as string || '',
+      reference: params.reference as string || '',
       managerId: params.managerId as string || '',
       productName: params.productName as string || '',
       productDescription: params.productDescription as string || '',
@@ -350,6 +358,15 @@ export default function CreateInstallment() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      setSelectedStartDate(selectedDate);
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      setFormData(prev => ({ ...prev, startDate: formattedDate }));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       showError('Please fix the errors before submitting');
@@ -366,6 +383,7 @@ export default function CreateInstallment() {
         email: formData.email,
         phone: formData.phone,
         address: formData.address || '',
+        reference: formData.reference || '',
         managerId: formData.managerId || undefined,
         productName: formData.productName,
         productDescription: formData.productDescription || '',
@@ -413,6 +431,19 @@ export default function CreateInstallment() {
   
   const removeCommas = (str: string): string => {
     return str.replace(/,/g, '');
+  };
+
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   const calculateMonthlyInstallment = () => {
@@ -622,6 +653,22 @@ export default function CreateInstallment() {
                     placeholderTextColor={colors.lightText}
                     multiline
                     numberOfLines={2}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Reference</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      { 
+                        borderColor: colors.border
+                      }
+                    ]}
+                    value={formData.reference}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, reference: text }))}
+                    placeholder="Reference (optional)"
+                    placeholderTextColor={colors.lightText}
                   />
                 </View>
 
@@ -1057,17 +1104,25 @@ export default function CreateInstallment() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.text }]}>Start Date *</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      { borderColor: errors.startDate ? colors.danger : colors.border }
-                    ]}
-                    value={formData.startDate}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, startDate: text }))}
-                    placeholder="Start date (YYYY-MM-DD)"
-                    placeholderTextColor={colors.lightText}
-                  />
+                  <View style={styles.inputLabelRow}>
+                    <Ionicons name="calendar" size={18} color={colors.primary} />
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Start Date *</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.datePickerButton, { 
+                      borderColor: errors.startDate ? colors.danger : colors.border,
+                      backgroundColor: colors.background
+                    }]}
+                    onPress={() => setShowStartDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.datePickerText, { 
+                      color: formData.startDate ? colors.text : colors.lightText 
+                    }]}>
+                      {formData.startDate ? formatDate(formData.startDate) : 'Select Start Date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                  </TouchableOpacity>
                   {errors.startDate && (
                     <Text style={[styles.errorText, { color: colors.danger }]}>
                       {errors.startDate}
@@ -1134,6 +1189,17 @@ export default function CreateInstallment() {
             </TouchableOpacity>
         </ScrollView>
       </View>
+      
+      {/* Date Picker for Start Date */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={selectedStartDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleStartDateChange}
+          minimumDate={new Date()}
+        />
+      )}
     </GestureHandlerRootView>
   );
 }
@@ -1578,6 +1644,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inputLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  datePickerText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 
 });

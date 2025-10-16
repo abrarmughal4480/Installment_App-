@@ -18,7 +18,8 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -67,6 +68,12 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
+    }
+
+    if (!formData.password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
     }
 
     setErrors(newErrors);
@@ -156,9 +163,6 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
               {errors.email && (
                 <p className="text-red-500 text-xs mt-1">{errors.email}</p>
               )}
-              <p className="text-xs text-red-500 mt-1">
-                * A new password will be generated and sent to this email address.
-              </p>
             </div>
 
             <div>
@@ -179,6 +183,27 @@ const AddManagerModal: React.FC<AddManagerModalProps> = ({
               />
               {errors.phone && (
                 <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-black mb-1">
+                Password *
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                autoComplete="off"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${
+                  errors.password ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter password"
+              />
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
               )}
             </div>
 

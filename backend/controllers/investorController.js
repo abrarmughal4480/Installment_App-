@@ -6,7 +6,7 @@ export const getInvestors = async (req, res) => {
   try {
     const userType = req.user?.type;
     
-    // Only admin can view all investors
+    // Only admin can view all investors, but main admin bypasses this check
     if (userType !== 'admin') {
       return res.status(403).json({
         success: false,

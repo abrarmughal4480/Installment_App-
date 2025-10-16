@@ -327,13 +327,21 @@ export const updateManager = async (req, res) => {
 // Add new manager
 export const addManager = async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, password } = req.body;
 
     // Validate input
-    if (!name || !email) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Name and email are required'
+        message: 'Name, email, and password are required'
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
       });
     }
 
@@ -346,40 +354,9 @@ export const addManager = async (req, res) => {
       });
     }
 
-    // Generate secure temporary password (8-12 characters)
-    const generateSecurePassword = () => {
-      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const digits = '0123456789';
-      const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-      
-      const allChars = lowercase + uppercase + digits + symbols;
-      const length = Math.floor(Math.random() * 5) + 8; // 8-12 characters
-      
-      let password = '';
-      
-      // Ensure at least one character from each category
-      password += lowercase[Math.floor(Math.random() * lowercase.length)];
-      password += uppercase[Math.floor(Math.random() * uppercase.length)];
-      password += digits[Math.floor(Math.random() * digits.length)];
-      password += symbols[Math.floor(Math.random() * symbols.length)];
-      
-      // Fill remaining length with random characters
-      for (let i = 4; i < length; i++) {
-        password += allChars[Math.floor(Math.random() * allChars.length)];
-      }
-      
-      // Shuffle the password
-      return password.split('').sort(() => Math.random() - 0.5).join('');
-    };
-    
-    const tempPassword = generateSecurePassword();
-    
-    console.log('🔑 Generated secure temporary password for', email, ':', tempPassword);
-    
     // Hash the password
     const bcrypt = await import('bcryptjs');
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create new manager
     const newManager = new User({
@@ -388,130 +365,11 @@ export const addManager = async (req, res) => {
       phone: phone ? phone.trim() : '',
       password: hashedPassword,
       type: 'manager',
-      tempPassword: true,
+      tempPassword: false, // Not a temporary password since admin set it
       isActive: true
     });
 
     await newManager.save();
-
-    // Send email with temporary password using emailService
-    try {
-      // HTML escape function for special characters
-      const htmlEscape = (str) => {
-        return str
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      };
-
-      const managerWelcomeTemplate = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Manager Account Created</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
-            .header { background: linear-gradient(135deg, #3B82F6, #1E40AF); padding: 40px; text-align: center; color: white; }
-            .content { padding: 40px; }
-            .title { font-size: 28px; font-weight: 800; color: #1f2937; margin-bottom: 16px; }
-            .message { color: #6b7280; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }
-            .credentials { background: #f8fafc; border: 2px solid #e5e7eb; border-radius: 16px; padding: 30px; margin: 30px 0; }
-            .credential-item { margin-bottom: 15px; }
-            .label { font-weight: 600; color: #374151; }
-            .value { color: #1f2937; font-family: 'Courier New', monospace; }
-            .password { background: #E2E8F0; padding: 8px 12px; border-radius: 8px; font-size: 18px; font-weight: 700; color: #1f2937; }
-            .warning { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 16px; margin: 20px 0; color: #92400e; }
-            .footer { background: #f9fafb; padding: 30px; text-align: center; color: #9ca3af; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎉 Welcome to Installments App!</h1>
-              <p>Manager Account Created Successfully</p>
-            </div>
-            <div class="content">
-              <h2 class="title">Hello ${name}!</h2>
-              <p class="message">Your manager account has been created successfully. Here are your login credentials:</p>
-              
-              <div class="credentials">
-                <div class="credential-item">
-                  <div class="label">Email Address:</div>
-                  <div class="value">${email}</div>
-                </div>
-                <div class="credential-item">
-                  <div class="label">Temporary Password:</div>
-                  <div class="password">${htmlEscape(tempPassword)}</div>
-                </div>
-              </div>
-              
-              <div class="warning">
-                <strong>⚠️ Important:</strong> Please change your password after your first login for security reasons.
-              </div>
-              
-              <p class="message">You can now access the admin dashboard and manage installments.</p>
-            </div>
-            <div class="footer">
-              <p>Best regards,<br>Installments App Team</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const mailOptions = {
-        from: `"Installments App" <abrarmughal4481@gmail.com>`,
-        to: email,
-        subject: '🎉 Manager Account Created - Installments App',
-        html: managerWelcomeTemplate,
-        text: `
-Installments App - Manager Account Created
-
-Hello ${name}!
-
-Your manager account has been created successfully.
-
-Login Credentials:
-Email: ${email}
-Temporary Password: ${tempPassword}
-
-Important: Please change your password after your first login for security reasons.
-
-You can now access the admin dashboard and manage installments.
-
-Best regards,
-Installments App Team
-        `
-      };
-
-      // Use the existing transporter from emailService
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: 'abrarmughal4481@gmail.com',
-          pass: 'pmvhrmrndipyddbv'
-        }
-      });
-
-      await transporter.sendMail(mailOptions);
-      console.log('✅ Manager welcome email sent to:', email);
-      console.log('📧 Email details:', {
-        to: email,
-        name: name,
-        tempPassword: tempPassword,
-        timestamp: new Date().toISOString()
-      });
-    } catch (emailError) {
-      console.error('❌ Failed to send email:', emailError.message);
-      console.log('📧 Email sending failed. Manager created with password:', tempPassword);
-      // Don't fail the request if email fails
-    }
 
     console.log('New manager created:', { name, email, type: 'manager' });
 

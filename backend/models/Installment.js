@@ -22,6 +22,10 @@ const installmentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  reference: {
+    type: String,
+    default: ''
+  },
   // Product Information
   productName: {
     type: String,

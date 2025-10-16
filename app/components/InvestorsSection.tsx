@@ -68,6 +68,9 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showUpdateProfitModal, setShowUpdateProfitModal] = useState(false);
   
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState(false);
+  
   // Form input states
   const [formData, setFormData] = useState({
     name: '',
@@ -1225,18 +1228,35 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                   <Text style={[styles.inputLabel, { color: colors.text }]}>
                     Password (Leave blank to keep current)
                   </Text>
-                  <TextInput
-                    style={[styles.textInput, { 
-                      backgroundColor: colors.cardBackground,
-                      borderColor: colors.border,
-                      color: colors.text 
-                    }]}
-                    value={formData.newPassword}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
-                    placeholder="Enter password for investor login"
-                    placeholderTextColor={colors.lightText}
-                    secureTextEntry
-                  />
+                  <View style={[styles.textInput, { 
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.border,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }]}>
+                    <TextInput
+                      style={[styles.textInput, { 
+                        color: colors.text,
+                        flex: 1
+                      }]}
+                      value={formData.newPassword}
+                      onChangeText={(text) => setFormData(prev => ({ ...prev, newPassword: text }))}
+                      placeholder="Enter password for investor login"
+                      placeholderTextColor={colors.lightText}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={showPassword ? "eye-off" : "eye"}
+                        size={20}
+                        color={colors.lightText}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 
                 <Text style={[styles.requiredNote, { color: colors.lightText }]}>
@@ -2272,6 +2292,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 12,
     textAlign: 'center',
+  },
+  eyeButton: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

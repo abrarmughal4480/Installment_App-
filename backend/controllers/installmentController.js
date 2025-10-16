@@ -83,6 +83,7 @@ export const getInstallments = async (req, res) => {
           customerEmail: plan.customerEmail,
           customerPhone: plan.customerPhone,
           customerAddress: plan.customerAddress,
+          reference: plan.reference,
           productName: plan.productName,
           productDescription: plan.productDescription,
           totalAmount: plan.totalAmount,
@@ -208,6 +209,7 @@ export const createInstallments = async (req, res) => {
       email,
       phone,
       address,
+      reference,
       productName,
       productDescription,
       totalAmount,
@@ -301,6 +303,7 @@ export const createInstallments = async (req, res) => {
       installment.customerEmail = email;
       installment.customerPhone = phone;
       installment.customerAddress = address || '';
+      installment.reference = reference || '';
       installment.productName = productName;
       installment.productDescription = productDescription || '';
       installment.totalAmount = totalAmount;
@@ -340,6 +343,7 @@ export const createInstallments = async (req, res) => {
         customerEmail: email,
         customerPhone: phone,
         customerAddress: address || '',
+        reference: reference || '',
         productName: productName,
         productDescription: productDescription || '',
         totalAmount: totalAmount,

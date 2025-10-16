@@ -1364,11 +1364,11 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {/* Content Area - Show regular content for admin/manager users with permissions */}
-        {user?.type === 'admin' && hasViewPermission() && currentView === 'installments' ? (
+        {/* Content Area - Always show installment section for managers and admins with permissions */}
+        {((user?.type === 'manager') || (user?.type === 'admin' && hasViewPermission() && currentView === 'installments')) ? (
           <>
-            {/* Modern Filter Pills */}
-            {(
+            {/* Modern Filter Pills - Only for admins */}
+            {user?.type === 'admin' && (
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false}
@@ -1412,7 +1412,6 @@ export default function AdminDashboard() {
             )}
 
         {/* Installment List */}
-        {(
         <View ref={installmentSectionRef} style={styles.installmentSection} onLayout={handleInstallmentHeaderLayout}>
           <View style={styles.sectionHeader}>
             {!showSearchBar ? (
@@ -1545,6 +1544,11 @@ export default function AdminDashboard() {
                   <Text style={[styles.installmentId, { color: colors.lightText }]}>
                     Phone: {installment.customerPhone ? `+92 300 ${installment.customerPhone.slice(-7)}` : '+92 300 0000000'}
                   </Text>
+                  {installment.reference && installment.reference !== '.' && installment.reference.trim() !== '' && (
+                    <Text style={[styles.installmentId, { color: colors.lightText }]}>
+                      Reference: {installment.reference}
+                    </Text>
+                  )}
                   {user?.type === 'admin' && installment.manager && (
                     <Text style={[styles.installmentId, { color: colors.lightText }]}>
                       Manager: {installment.manager.name}
@@ -1663,7 +1667,6 @@ export default function AdminDashboard() {
             ))
           )}
         </View>
-        )}
           </>
         ) : currentView === 'managers' ? (
           /* Managers Section - Only for Admin with view permission */

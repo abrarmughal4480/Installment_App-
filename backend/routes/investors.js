@@ -24,11 +24,11 @@ router.get('/', requireViewPermission, getInvestors);
 // POST /api/investors - Add new investor (requires add permission)
 router.post('/', requireAddPermission, addInvestor);
 
-// GET /api/investors/dashboard - Get investor dashboard data (requires view permission)
-router.get('/dashboard', requireViewPermission, getInvestorDashboard);
+// GET /api/investors/dashboard - Get investor dashboard data (investors can access their own dashboard)
+router.get('/dashboard', getInvestorDashboard);
 
-// GET /api/investors/profit-history - Get investor profit history (requires view permission)
-router.get('/profit-history', requireViewPermission, getInvestorProfitHistory);
+// GET /api/investors/profit-history - Get investor profit history (investors can access their own history)
+router.get('/profit-history', getInvestorProfitHistory);
 
 // POST /api/investors/update-profit - Update monthly profit (main admin only)
 router.post('/update-profit', requireMainAdmin, updateMonthlyProfit);

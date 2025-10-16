@@ -28,10 +28,12 @@ export default function AddManagerModal({
 }: AddManagerModalProps) {
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    password: '',
   });
 
   const handleSubmit = async () => {
@@ -43,6 +45,16 @@ export default function AddManagerModal({
 
     if (!formData.email.trim()) {
       showError('Please enter email address');
+      return;
+    }
+
+    if (!formData.password.trim()) {
+      showError('Please enter password');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      showError('Password must be at least 6 characters long');
       return;
     }
 
@@ -60,11 +72,13 @@ export default function AddManagerModal({
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim() || undefined,
+        password: formData.password.trim(),
       });
 
       if (response.success) {
-        showSuccess('Manager added successfully! Login credentials sent to email.');
-        setFormData({ name: '', email: '', phone: '' });
+        showSuccess('Manager added successfully!');
+        setFormData({ name: '', email: '', phone: '', password: '' });
+        setShowPassword(false);
         onSuccess();
         onClose();
       } else {
@@ -79,7 +93,8 @@ export default function AddManagerModal({
   };
 
   const handleClose = () => {
-    setFormData({ name: '', email: '', phone: '' });
+    setFormData({ name: '', email: '', phone: '', password: '' });
+    setShowPassword(false);
     onClose();
   };
 
@@ -171,6 +186,43 @@ export default function AddManagerModal({
                 placeholderTextColor={colors.lightText}
                 keyboardType="phone-pad"
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Password <Text style={{ color: colors.danger }}>*</Text>
+              </Text>
+              <View style={[styles.inputContainer, { 
+                backgroundColor: colors.background, 
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center'
+              }]}>
+                <TextInput
+                  style={[styles.textInput, { 
+                    color: colors.text,
+                    flex: 1
+                  }]}
+                  value={formData.password}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
+                  placeholder="Enter password"
+                  placeholderTextColor={colors.lightText}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color={colors.lightText}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
           </ScrollView>
@@ -328,5 +380,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
+  },
+  eyeButton: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
