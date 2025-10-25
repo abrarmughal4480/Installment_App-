@@ -209,10 +209,7 @@ const PDFGenerator: React.FC<PDFGeneratorProps> = ({ installment, isOpen, onClos
         remainingH -= a4h - margin * 2;
       }
 
-      const safeName = `Installment_${S(installment.customerName, 'Customer')}_${S(
-        installment.customerId,
-        'ID',
-      )}`.replace(/[^\w.-]+/g, '_');
+      const safeName = `Installment_${S(installment.customerName, 'Customer')}`.replace(/[^\w.-]+/g, '_');
 
       // Generate PDF blob for sharing
       const pdfBlob = pdf.output('blob');
