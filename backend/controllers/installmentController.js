@@ -42,42 +42,29 @@ export const getInstallments = async (req, res) => {
       }
     };
 
-    // Process each installment plan to show only next unpaid installment
+    // Process each installment plan to show next unpaid installment or completed status
     const installments = [];
     
     for (const plan of installmentPlans) {
+      // Calculate remaining installment information
+      const totalPaidInstallments = plan.installments.filter(inst => inst.status === 'paid').length;
+      const totalUnpaidInstallments = plan.installments.filter(inst => inst.status !== 'paid').length;
       
-      // Find the next unpaid installment
-      const nextUnpaidInstallment = plan.installments.find(inst => 
-        inst.status === 'pending' || inst.status === 'overdue'
-      );
+      // Check if all installments are paid
+      const allPaid = totalUnpaidInstallments === 0 && totalPaidInstallments === plan.installments.length;
       
-      if (nextUnpaidInstallment) {
-        // Apply status filter if provided
-        if (status) {
-          const mappedStatus = mapStatus(nextUnpaidInstallment.status);
-          if (mappedStatus !== status) {
-            continue;
-          }
+      if (allPaid) {
+        // All installments are paid - show as completed
+        if (status && status !== 'completed') {
+          continue;
         }
         
-        // Calculate remaining installment information for edit purposes
-        const totalPaidInstallments = plan.installments.filter(inst => inst.status === 'paid').length;
-        const totalUnpaidInstallments = plan.installments.filter(inst => inst.status !== 'paid').length;
+        // Get the last paid installment for reference
+        const lastInstallment = plan.installments[plan.installments.length - 1];
         
-        // Calculate remaining amount (total - advance - paid installments)
-        const paidFromInstallments = plan.installments.reduce((sum, inst) => {
-          return sum + (inst.actualPaidAmount || 0);
-        }, 0);
-        const remainingAmount = plan.totalAmount - plan.advanceAmount - paidFromInstallments;
-        
-        
-        // Calculate new monthly installment for remaining installments
-        const newMonthlyInstallment = totalUnpaidInstallments > 0 ? Math.ceil(remainingAmount / totalUnpaidInstallments) : 0;
-
         const installmentData = {
           id: plan._id,
-          installmentNumber: nextUnpaidInstallment.installmentNumber,
+          installmentNumber: plan.installments.length,
           customerId: plan.customerId,
           customerName: plan.customerName,
           customerEmail: plan.customerEmail,
@@ -91,31 +78,87 @@ export const getInstallments = async (req, res) => {
           installmentCount: plan.installmentCount,
           installmentUnit: plan.installmentUnit,
           monthlyInstallment: plan.monthlyInstallment,
-          amount: nextUnpaidInstallment.amount,
-          dueDate: nextUnpaidInstallment.dueDate,
-          paidDate: nextUnpaidInstallment.paidDate,
-          status: mapStatus(nextUnpaidInstallment.status),
-          paymentMethod: nextUnpaidInstallment.paymentMethod,
-          notes: nextUnpaidInstallment.notes,
+          amount: 0, // No amount remaining
+          dueDate: lastInstallment.dueDate,
+          paidDate: lastInstallment.paidDate,
+          status: 'completed',
+          paymentMethod: lastInstallment.paymentMethod,
+          notes: '',
           createdAt: plan.createdAt,
           updatedAt: plan.updatedAt,
-          // Additional info about the plan
           totalPaidInstallments: totalPaidInstallments,
-          totalUnpaidInstallments: totalUnpaidInstallments,
-          // Include full installments array for accurate calculations
+          totalUnpaidInstallments: 0,
           installments: plan.installments,
-          // Edit-specific calculations
-          remainingAmount: remainingAmount,
-          remainingInstallmentCount: totalUnpaidInstallments,
-          newMonthlyInstallment: newMonthlyInstallment,
+          remainingAmount: 0,
+          remainingInstallmentCount: 0,
+          newMonthlyInstallment: 0,
           dueDay: plan.dueDay,
-          // Manager information
           createdBy: plan.createdBy,
           manager: plan.managerId
         };
-
-
+        
         installments.push(installmentData);
+      } else {
+        // Find the next unpaid installment
+        const nextUnpaidInstallment = plan.installments.find(inst => 
+          inst.status === 'pending' || inst.status === 'overdue'
+        );
+        
+        if (nextUnpaidInstallment) {
+          // Apply status filter if provided
+          if (status) {
+            const mappedStatus = mapStatus(nextUnpaidInstallment.status);
+            if (mappedStatus !== status) {
+              continue;
+            }
+          }
+          
+          // Calculate remaining amount (total - advance - paid installments)
+          const paidFromInstallments = plan.installments.reduce((sum, inst) => {
+            return sum + (inst.actualPaidAmount || 0);
+          }, 0);
+          const remainingAmount = plan.totalAmount - plan.advanceAmount - paidFromInstallments;
+          
+          // Calculate new monthly installment for remaining installments
+          const newMonthlyInstallment = totalUnpaidInstallments > 0 ? Math.ceil(remainingAmount / totalUnpaidInstallments) : 0;
+
+          const installmentData = {
+            id: plan._id,
+            installmentNumber: nextUnpaidInstallment.installmentNumber,
+            customerId: plan.customerId,
+            customerName: plan.customerName,
+            customerEmail: plan.customerEmail,
+            customerPhone: plan.customerPhone,
+            customerAddress: plan.customerAddress,
+            reference: plan.reference,
+            productName: plan.productName,
+            productDescription: plan.productDescription,
+            totalAmount: plan.totalAmount,
+            advanceAmount: plan.advanceAmount,
+            installmentCount: plan.installmentCount,
+            installmentUnit: plan.installmentUnit,
+            monthlyInstallment: plan.monthlyInstallment,
+            amount: nextUnpaidInstallment.amount,
+            dueDate: nextUnpaidInstallment.dueDate,
+            paidDate: nextUnpaidInstallment.paidDate,
+            status: mapStatus(nextUnpaidInstallment.status),
+            paymentMethod: nextUnpaidInstallment.paymentMethod,
+            notes: nextUnpaidInstallment.notes,
+            createdAt: plan.createdAt,
+            updatedAt: plan.updatedAt,
+            totalPaidInstallments: totalPaidInstallments,
+            totalUnpaidInstallments: totalUnpaidInstallments,
+            installments: plan.installments,
+            remainingAmount: remainingAmount,
+            remainingInstallmentCount: totalUnpaidInstallments,
+            newMonthlyInstallment: newMonthlyInstallment,
+            dueDay: plan.dueDay,
+            createdBy: plan.createdBy,
+            manager: plan.managerId
+          };
+
+          installments.push(installmentData);
+        }
       }
     }
 
@@ -462,48 +505,154 @@ export const payInstallment = async (req, res) => {
     const actualPaidAmount = customAmount !== null ? parseFloat(customAmount) : installment.amount;
     installment.actualPaidAmount = actualPaidAmount;
     
-    // Calculate difference between paid amount and required amount
+    // Calculate difference between paid amount and current installment amount
     const difference = actualPaidAmount - installment.amount;
     
-    // If there's a difference, distribute it among remaining unpaid installments
-    if (difference !== 0) {
-      const remainingInstallments = installmentPlan.installments.filter(inst => 
-        inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
-      );
+    // Get remaining installments after current one (including paid installments with 0 amount)
+    const remainingInstallments = installmentPlan.installments.filter(inst => 
+      inst.installmentNumber > installment.installmentNumber && 
+      (inst.status === 'pending' || (inst.status === 'paid' && inst.amount === 0))
+    );
+    
+    // Track if all remaining installments were paid
+    let allRemainingPaid = false;
+    let totalRemainingAmount = 0;
+    
+    if (remainingInstallments.length > 0) {
+      // Calculate total remaining amount
+      totalRemainingAmount = remainingInstallments.reduce((sum, inst) => sum + inst.amount, 0);
       
-      if (remainingInstallments.length > 0) {
+      // Check if payment covers ALL remaining installments
+      if (difference >= totalRemainingAmount && difference > 0) {
+        allRemainingPaid = true;
+        
+        // Calculate how much excess payment is left after paying all remaining
+        const excessAfterPayingAll = difference - totalRemainingAmount;
+        
+        // Mark ALL remaining installments as paid
+        // These were paid using the excess from current installment payment
+        // So actualPaidAmount should be 0 for them (to avoid double-counting)
+        remainingInstallments.forEach(remainingInst => {
+          // Save the original amount for reference
+          const originalAmount = remainingInst.amount;
+          
+          remainingInst.status = 'paid';
+          remainingInst.paidDate = new Date();
+          remainingInst.paymentMethod = paymentMethod;
+          remainingInst.notes = notes || `Paid in advance with excess from installment #${installment.installmentNumber}`;
+          remainingInst.paidBy = req.user.userId;
+          
+          // Set actualPaidAmount to 0 because nothing was specifically paid for these
+          // The excess from previous payment covered them
+          remainingInst.actualPaidAmount = 0;
+          
+          // Set the amount to 0 since they're fully paid
+          remainingInst.amount = 0;
+        });
+      } else if (difference > 0) {
+        // Excess payment: distribute among remaining installments
         const amountPerInstallment = difference / remainingInstallments.length;
-        // Round up to nearest 1 (always increase, never decrease)
         const roundedAmountPerInstallment = Math.ceil(Math.abs(amountPerInstallment));
         
-        // Update remaining installments
         remainingInstallments.forEach(remainingInst => {
-          const newAmount = remainingInst.amount - (amountPerInstallment > 0 ? roundedAmountPerInstallment : -roundedAmountPerInstallment);
-          // Ensure amount doesn't go below 0
-          remainingInst.amount = Math.max(0, newAmount);
+          // If installment is paid with 0 amount, mark as unpaid and add the distribution
+          if (remainingInst.status === 'paid' && remainingInst.amount === 0) {
+            remainingInst.status = 'pending';
+            remainingInst.paidDate = undefined;
+            remainingInst.paymentMethod = undefined;
+            remainingInst.notes = undefined;
+            remainingInst.paidBy = undefined;
+            remainingInst.actualPaidAmount = undefined;
+            remainingInst.amount = roundedAmountPerInstallment;
+          } else if (remainingInst.amount === 0 && remainingInst.status === 'pending') {
+            // If unpaid with 0 amount, just add the distribution
+            remainingInst.amount = roundedAmountPerInstallment;
+          } else {
+            // Normal case: reduce the amount
+            const originalAmount = remainingInst.amount;
+            const reduction = Math.min(originalAmount, roundedAmountPerInstallment);
+            remainingInst.amount = Math.max(0, originalAmount - reduction);
+          }
         });
+      } else if (difference < 0) {
+        // Shortfall: increase remaining installment amounts
+        const amountPerInstallment = Math.abs(difference) / remainingInstallments.length;
+        const roundedAmountPerInstallment = Math.ceil(amountPerInstallment);
+        
+        remainingInstallments.forEach(remainingInst => {
+          // If installment is paid with 0 amount, mark as unpaid and add the amount
+          if (remainingInst.status === 'paid' && remainingInst.amount === 0) {
+            remainingInst.status = 'pending';
+            remainingInst.paidDate = undefined;
+            remainingInst.paymentMethod = undefined;
+            remainingInst.notes = undefined;
+            remainingInst.paidBy = undefined;
+            remainingInst.actualPaidAmount = undefined;
+            remainingInst.amount = roundedAmountPerInstallment;
+          } else {
+            // Normal case: increase the amount
+            remainingInst.amount = remainingInst.amount + roundedAmountPerInstallment;
+          }
+        });
+      }
+    } else if (remainingInstallments.length === 0) {
+      // No remaining installments
+      if (difference > 0) {
+        // Excess payment - create new installment
+        const nextInstallmentNumber = installmentPlan.installments.length + 1;
+        const lastInstallmentDate = installmentPlan.installments[installmentPlan.installments.length - 1]?.dueDate || new Date();
+        const newInstallment = {
+          installmentNumber: nextInstallmentNumber,
+          amount: difference,
+          dueDate: new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days after last installment
+          status: 'pending'
+        };
+        installmentPlan.installments.push(newInstallment);
+        allRemainingPaid = false;
+      } else if (difference < 0) {
+        // Shortfall - create new installment with remaining amount
+        const remainingAmount = Math.abs(difference);
+        const nextInstallmentNumber = installmentPlan.installments.length + 1;
+        const lastInstallmentDate = installmentPlan.installments[installmentPlan.installments.length - 1]?.dueDate || new Date();
+        const newInstallment = {
+          installmentNumber: nextInstallmentNumber,
+          amount: remainingAmount,
+          dueDate: new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days after last installment
+          status: 'pending'
+        };
+        installmentPlan.installments.push(newInstallment);
+        allRemainingPaid = false;
       }
     }
     
     await installmentPlan.save();
 
     // Calculate distribution info for response
-    const remainingInstallments = installmentPlan.installments.filter(inst => 
+    const stillPendingInstallments = installmentPlan.installments.filter(inst => 
       inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
     );
     
-    const distributionInfo = difference !== 0 && remainingInstallments.length > 0 ? {
-      difference: difference,
-      distributedTo: remainingInstallments.length,
-      amountPerInstallment: Math.ceil(Math.abs(difference / remainingInstallments.length)),
-      message: difference > 0 
-        ? `Excess payment of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / remainingInstallments.length)).toLocaleString()} each)`
-        : `Shortfall of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / remainingInstallments.length)).toLocaleString()} each)`
-    } : null;
+    let distributionInfo = null;
+    
+    if (allRemainingPaid && remainingInstallments.length > 0) {
+      distributionInfo = {
+        allPaid: true,
+        message: `All remaining installments (${remainingInstallments.length}) marked as paid. Total amount cleared: Rs. ${totalRemainingAmount.toLocaleString()}`
+      };
+    } else if (difference !== 0 && stillPendingInstallments.length > 0) {
+      distributionInfo = {
+        difference: difference,
+        distributedTo: stillPendingInstallments.length,
+        amountPerInstallment: Math.ceil(Math.abs(difference / stillPendingInstallments.length)),
+        message: difference > 0 
+          ? `Excess payment of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingInstallments.length)).toLocaleString()} each)`
+          : `Shortfall of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingInstallments.length)).toLocaleString()} each)`
+      };
+    }
 
     res.json({
       success: true,
-      message: 'Installment marked as paid',
+      message: allRemainingPaid ? 'All installments paid successfully!' : 'Installment marked as paid',
       installment: {
         id: installmentPlan._id,
         installmentNumber: installment.installmentNumber,
@@ -612,14 +761,18 @@ export const updatePayment = async (req, res) => {
       
       if (remainingInstallments.length > 0) {
         const amountPerInstallment = amountDifference / remainingInstallments.length;
-        // Round up to nearest 1 (always increase, never decrease)
+        // Round up to nearest 1
         const roundedAmountPerInstallment = Math.ceil(Math.abs(amountPerInstallment));
         
         // Update remaining installments
         remainingInstallments.forEach(remainingInst => {
-          const newAmount = remainingInst.amount - (amountPerInstallment > 0 ? roundedAmountPerInstallment : -roundedAmountPerInstallment);
-          // Ensure amount doesn't go below 0
-          remainingInst.amount = Math.max(0, newAmount);
+          if (amountDifference > 0) {
+            // Increased payment: reduce remaining installment amounts
+            remainingInst.amount = Math.max(0, remainingInst.amount - roundedAmountPerInstallment);
+          } else {
+            // Decreased payment: increase remaining installment amounts
+            remainingInst.amount = remainingInst.amount + roundedAmountPerInstallment;
+          }
         });
       }
     }
@@ -699,8 +852,14 @@ export const markInstallmentUnpaid = async (req, res) => {
       });
     }
 
-    // Store the paid amount for reverse distribution calculation
-    const paidAmount = installment.actualPaidAmount || installment.amount;
+    // Save the actual paid amount before clearing
+    const actualPaid = installment.actualPaidAmount;
+    
+    // Restore amount to what was actually paid
+    // If actualPaidAmount exists, use that; otherwise keep current amount
+    if (actualPaid !== undefined && actualPaid !== null) {
+      installment.amount = actualPaid;
+    }
     
     // Mark installment as unpaid
     installment.status = 'pending';
@@ -710,31 +869,7 @@ export const markInstallmentUnpaid = async (req, res) => {
     installment.paidBy = undefined;
     installment.actualPaidAmount = undefined;
     
-    // Calculate reverse distribution - redistribute the paid amount among remaining installments
-    const remainingInstallments = installmentPlan.installments.filter(inst => 
-      inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
-    );
-    
-    if (remainingInstallments.length > 0) {
-      const amountPerInstallment = paidAmount / remainingInstallments.length;
-      // Round up to nearest 1
-      const roundedAmountPerInstallment = Math.ceil(amountPerInstallment);
-      
-      // Add the amount back to remaining installments
-      remainingInstallments.forEach(remainingInst => {
-        remainingInst.amount = remainingInst.amount + roundedAmountPerInstallment;
-      });
-    }
-    
     await installmentPlan.save();
-
-    // Calculate reverse distribution info for response
-    const distributionInfo = remainingInstallments.length > 0 ? {
-      originalPaidAmount: paidAmount,
-      distributedTo: remainingInstallments.length,
-      amountPerInstallment: Math.ceil(paidAmount / remainingInstallments.length),
-      message: `Previously paid amount of Rs. ${paidAmount.toLocaleString()} redistributed across ${remainingInstallments.length} remaining installments (Rs. ${Math.ceil(paidAmount / remainingInstallments.length).toLocaleString()} each)`
-    } : null;
 
     res.json({
       success: true,
@@ -745,8 +880,7 @@ export const markInstallmentUnpaid = async (req, res) => {
         amount: installment.amount,
         status: installment.status,
         dueDate: installment.dueDate
-      },
-      distribution: distributionInfo
+      }
     });
   } catch (error) {
     console.error('Error marking installment as unpaid:', error);

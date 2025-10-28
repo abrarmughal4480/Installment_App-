@@ -233,11 +233,6 @@ export default function InstallmentDetails() {
         showSuccess(response.message);
         closePaymentModal();
         await loadInstallmentDetails(); // Refresh the data
-        
-        // Show distribution info if available
-        if (response.distribution) {
-          showInfo(response.distribution.message);
-        }
       } else {
         showError(response.message || 'Failed to mark installment as unpaid');
       }

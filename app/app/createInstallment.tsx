@@ -310,9 +310,7 @@ export default function CreateInstallment() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
+    if (formData.email.trim() && !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
     if (!formData.customerId.trim()) newErrors.customerId = 'Customer ID is required';
     if (!formData.productName.trim()) newErrors.productName = 'Product name is required';
 
@@ -594,7 +592,7 @@ export default function CreateInstallment() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.text }]}>Email *</Text>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
                   <TextInput
                     style={[
                       styles.textInput,
@@ -604,7 +602,7 @@ export default function CreateInstallment() {
                     ]}
                     value={formData.email}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-                      placeholder="Email address"
+                      placeholder="Email address (optional)"
                     placeholderTextColor={colors.lightText}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -617,7 +615,7 @@ export default function CreateInstallment() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.text }]}>Phone *</Text>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Phone</Text>
                   <TextInput
                     style={[
                       styles.textInput,
@@ -627,7 +625,7 @@ export default function CreateInstallment() {
                     ]}
                     value={formData.phone}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-                      placeholder="Phone number"
+                      placeholder="Phone number (optional)"
                     placeholderTextColor={colors.lightText}
                     keyboardType="phone-pad"
                   />
@@ -1197,7 +1195,6 @@ export default function CreateInstallment() {
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleStartDateChange}
-          minimumDate={new Date()}
         />
       )}
     </GestureHandlerRootView>
