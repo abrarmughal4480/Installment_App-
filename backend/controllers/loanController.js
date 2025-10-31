@@ -24,7 +24,6 @@ export const getLoans = async (req, res) => {
       count: loans.length
     });
   } catch (error) {
-    console.error('Error fetching loans:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch loans',
@@ -58,7 +57,6 @@ export const getLoansByInvestor = async (req, res) => {
       count: loans.length
     });
   } catch (error) {
-    console.error('Error fetching investor loans:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch investor loans',
@@ -113,7 +111,6 @@ export const addLoan = async (req, res) => {
       data: newLoan
     });
   } catch (error) {
-    console.error('Error adding loan:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to add loan',
@@ -163,7 +160,6 @@ export const updateLoan = async (req, res) => {
       data: loan
     });
   } catch (error) {
-    console.error('Error updating loan:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update loan',
@@ -218,7 +214,6 @@ export const addLoanPayment = async (req, res) => {
       data: loan
     });
   } catch (error) {
-    console.error('Error adding loan payment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to add payment',
@@ -256,7 +251,6 @@ export const deleteLoan = async (req, res) => {
       message: 'Loan deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting loan:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete loan',
@@ -290,7 +284,6 @@ export const getLoanById = async (req, res) => {
       data: loan
     });
   } catch (error) {
-    console.error('Error fetching loan:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch loan',
@@ -341,7 +334,6 @@ export const getLoanStats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching loan statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch loan statistics',

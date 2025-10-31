@@ -120,25 +120,8 @@ export default class PDFGenerator {
             }).join('')
           : '';
 
-        // Generate remaining payment rows for unpaid installments
-        const totalPayments = loan.paymentHistory ? loan.paymentHistory.length : 0;
-        const remainingPayments = Math.max(0, loan.duration - totalPayments);
-        const remainingRows = Array.from({ length: remainingPayments }, (_, idx) => {
-          const paymentNumber = totalPayments + idx + 1;
-          const startDate = new Date(loan.startDate);
-          const dueDate = new Date(startDate);
-          dueDate.setMonth(dueDate.getMonth() + paymentNumber);
-
-          return `
-            <tr>
-              <td>${paymentNumber}</td>
-              <td>${dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-              <td>${this.formatCurrency(loan.monthlyPayment)}</td>
-              <td>Rs. 0</td>
-              <td><span class="status-pending">Pending</span></td>
-            </tr>
-          `;
-        }).join('');
+        // Do not synthesize schedule rows; rely only on backend history
+        const remainingRows = '';
 
         return `
           <!doctype html>
@@ -260,7 +243,6 @@ export default class PDFGenerator {
                 </thead>
                 <tbody>
                   ${paymentRows}
-                  ${remainingRows}
                       <tr class="total-row">
                         <td colspan="2">Totals</td>
                         <td>${this.formatCurrency(loan.totalAmount)}</td>
@@ -545,81 +527,98 @@ export default class PDFGenerator {
       this.showInfo('Generating PDF...');
 
       const calculateTotals = () => {
+        // Use backend values directly
         const totalAmount = installment.totalAmount || 0;
         const advanceAmount = installment.advanceAmount || 0;
-        const paidInstallments = installment.totalPaidInstallments || 0;
-        const monthlyAmount = installment.amount || 0;
-        const paidFromInstallments = paidInstallments * monthlyAmount;
-        const totalPaidAmount = advanceAmount + paidFromInstallments;
+        
+        // Calculate totals directly from backend installments array
+        let sumOfInstallmentAmounts = 0;
+        let sumOfPaidAmounts = 0;
+        let sumOfRemainingAmounts = 0;
+        
+        if (Array.isArray(installment.installments) && installment.installments.length > 0) {
+          installment.installments.forEach((inst: any) => {
+            // Use backend values directly
+            const baseAmount = inst.amount || 0;
+            // Use actualPaidAmount as installment amount if available (for paid installments)
+            const installmentAmount = (inst.status === 'paid' && inst.actualPaidAmount) ? inst.actualPaidAmount : baseAmount;
+            sumOfInstallmentAmounts += installmentAmount;
+            
+            // Use actual backend values for paid amounts
+            const paidAmt = inst.status === 'paid' ? (inst.actualPaidAmount ?? 0) : 0;
+            sumOfPaidAmounts += paidAmt;
+            
+            // Calculate remaining from backend data
+            const remainingAmt = installmentAmount - paidAmt;
+            sumOfRemainingAmounts += Math.max(0, remainingAmt);
+          });
+        }
+        
+        // Total paid includes advance from backend
+        const totalPaidAmount = advanceAmount + sumOfPaidAmounts;
+        
+        // Remaining is total minus what's paid (from backend calculation)
         const remaining = totalAmount - totalPaidAmount;
-        return { totalAmount, advanceAmount, paidAmount: totalPaidAmount, remaining };
+        
+        return { 
+          totalAmount,           // From backend
+          advanceAmount,        // From backend
+          paidAmount: totalPaidAmount,  // advance + sum of paid installments
+          remaining,            // totalAmount - totalPaidAmount
+          sumOfInstallmentAmounts,  // Sum of all installment amounts from backend
+          sumOfPaidAmounts,     // Sum of actualPaidAmount from backend
+          sumOfRemainingAmounts // Sum of remaining amounts
+        };
       };
 
       const totals = calculateTotals();
 
       const generateHTML = () => {
-        // Generate installment schedule rows
-        const installmentRows = Array.from({ length: installment.installmentCount || 1 }, (_, idx) => {
-          const i = idx + 1;
-          const start = installment.createdAt ? new Date(installment.createdAt) : new Date();
-          const due = new Date(start);
-          due.setMonth(due.getMonth() + i);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0); // Reset time to start of day
-          due.setHours(0, 0, 0, 0); // Reset time to start of day
-
-          // Check if this specific installment is paid
-          let isPaid = false;
-          let paymentMethod = 'cash';
-          let paidDate = '';
-          
-          // Check if there's an installment record for this number
-          if (Array.isArray(installment.installments)) {
-            const installmentRecord = installment.installments.find((inst: any) => inst.installmentNumber === i);
-            if (installmentRecord) {
-              isPaid = installmentRecord.status === 'paid';
-              paymentMethod = installmentRecord.paymentMethod || 'cash';
-              paidDate = installmentRecord.paidDate || '';
-            }
-          }
-          
-          // Fallback: check if this installment number is less than or equal to total paid installments
-          if (!isPaid && installment.totalPaidInstallments && i <= installment.totalPaidInstallments) {
-            isPaid = true;
-          }
-
-          // Determine status based on payment and due date
-          let status = '';
-          let statusClass = '';
-          
-          if (isPaid) {
-            status = 'Paid';
-            statusClass = 'status-paid';
-          } else if (due < today) {
-            status = 'Overdue';
-            statusClass = 'status-overdue';
-          } else if (due.getTime() === today.getTime()) {
-            status = 'Due Today';
-            statusClass = 'status-due';
-          } else {
-            status = 'Pending';
-            statusClass = 'status-pending';
-          }
-
-          const paidAmount = isPaid ? installment.amount : 0;
-          const remainingAmount = installment.amount - paidAmount;
-
-          return `
-            <tr>
-              <td>${i}</td>
-              <td>${due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-              <td>${this.formatCurrency(installment.amount)}</td>
-              <td>${this.formatCurrency(paidAmount)}</td>
-              <td>${this.formatCurrency(remainingAmount)}</td>
-              <td><span class="${statusClass}">${status}</span></td>
-            </tr>
-          `;
-        }).join('');
+        // Generate installment schedule rows using backend data only
+        const installmentRows = Array.isArray(installment.installments) && installment.installments.length > 0
+          ? installment.installments
+              .slice()
+              .sort((a: any, b: any) => a.installmentNumber - b.installmentNumber)
+              .map((inst: any) => {
+                // Use backend values directly
+                const due = inst.dueDate ? new Date(inst.dueDate) : null;
+                const isPaid = inst.status === 'paid';
+                const baseAmount = inst.amount ?? 0;
+                // Show actualPaidAmount in installment amount column if available (for paid installments)
+                const installmentAmount = (isPaid && inst.actualPaidAmount) ? inst.actualPaidAmount : baseAmount;
+                // Use actualPaidAmount from backend for paid column, or 0 if not paid
+                const paidAmount = isPaid ? (inst.actualPaidAmount ?? 0) : 0;
+                const remainingAmount = Math.max(0, installmentAmount - paidAmount);
+                let statusLabel = 'Pending';
+                let statusClass = 'status-pending';
+                if (isPaid) {
+                  statusLabel = 'Paid';
+                  statusClass = 'status-paid';
+                } else if (inst.status === 'overdue') {
+                  statusLabel = 'Overdue';
+                  statusClass = 'status-overdue';
+                } else if (inst.status === 'pending' && due) {
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const dueClone = new Date(due);
+                  dueClone.setHours(0,0,0,0);
+                  if (dueClone.getTime() === today.getTime()) {
+                    statusLabel = 'Due Today';
+                    statusClass = 'status-due';
+                  }
+                }
+                return `
+                  <tr>
+                    <td>${inst.installmentNumber}</td>
+                    <td>${due ? due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</td>
+                    <td>${this.formatCurrency(installmentAmount)}</td>
+                    <td>${this.formatCurrency(paidAmount)}</td>
+                    <td>${this.formatCurrency(remainingAmount)}</td>
+                    <td><span class="${statusClass}">${statusLabel}</span></td>
+                  </tr>
+                `;
+              }).join('')
+          : '';
 
         // Generate payment history rows from paid installments
         const paymentHistoryRows = installment.installments && installment.installments.length > 0 
@@ -735,6 +734,7 @@ export default class PDFGenerator {
                   <div class="card">
                     <h3>Balance Overview</h3>
                     <p><strong>Total Price:</strong> ${this.formatCurrency(totals.totalAmount)}<br>
+                       <strong>Advance Amount:</strong> ${this.formatCurrency(totals.advanceAmount)}<br>
                        <strong>Paid to Date:</strong> ${this.formatCurrency(totals.paidAmount)}<br>
                        <strong>Remaining Balance:</strong> ${this.formatCurrency(totals.remaining)}
                     </p>
@@ -758,9 +758,9 @@ export default class PDFGenerator {
                   ${installmentRows}
                       <tr class="total-row">
                         <td colspan="2">Totals</td>
-                        <td>${this.formatCurrency(totals.totalAmount)}</td>
-                        <td>${this.formatCurrency(totals.paidAmount)}</td>
-                        <td>${this.formatCurrency(totals.remaining)}</td>
+                        <td>${this.formatCurrency(totals.sumOfInstallmentAmounts)}</td>
+                        <td>${this.formatCurrency(totals.sumOfPaidAmounts)}</td>
+                        <td>${this.formatCurrency(totals.sumOfRemainingAmounts)}</td>
                         <td></td>
                       </tr>
                 </tbody>

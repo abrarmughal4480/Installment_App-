@@ -22,7 +22,6 @@ export const getInvestors = async (req, res) => {
       count: investors.length
     });
   } catch (error) {
-    console.error('Error fetching investors:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch investors',
@@ -80,7 +79,6 @@ export const addInvestor = async (req, res) => {
       data: investorResponse
     });
   } catch (error) {
-    console.error('Error adding investor:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to add investor',
@@ -120,7 +118,6 @@ export const updateInvestor = async (req, res) => {
       data: updatedInvestor
     });
   } catch (error) {
-    console.error('Error updating investor:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update investor',
@@ -148,7 +145,6 @@ export const deleteInvestor = async (req, res) => {
       message: 'Investor deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting investor:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete investor',
@@ -223,7 +219,6 @@ export const getInvestorDashboard = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching investor dashboard:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch investor dashboard',
@@ -279,7 +274,6 @@ export const updateMonthlyProfit = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating monthly profit:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update monthly profit',
@@ -322,7 +316,6 @@ export const getInvestorProfitHistory = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching profit history:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch profit history',
@@ -350,7 +343,6 @@ export const getInvestorById = async (req, res) => {
       data: investor
     });
   } catch (error) {
-    console.error('Error fetching investor:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch investor',
@@ -450,7 +442,6 @@ export const distributeProfits = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error distributing profits:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to distribute profits',

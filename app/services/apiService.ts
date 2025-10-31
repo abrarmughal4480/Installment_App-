@@ -419,6 +419,7 @@ class ApiService {
     notes?: string;
     customAmount?: number;
     dueDate?: string;
+    paidDate?: string;
   }): Promise<{ 
     success: boolean; 
     message: string; 
@@ -447,6 +448,7 @@ class ApiService {
     notes?: string;
     customAmount?: number;
     dueDate?: string;
+    paidDate?: string;
   }): Promise<{ 
     success: boolean; 
     message: string; 

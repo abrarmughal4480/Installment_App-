@@ -3,12 +3,6 @@ import User from '../models/User.js';
 
 // Authenticate JWT Token
 export const authenticateToken = async (req, res, next) => {
-  console.log('🔐 AUTH MIDDLEWARE HIT:', {
-    url: req.url,
-    method: req.method,
-    hasAuthHeader: !!req.headers['authorization'],
-    timestamp: new Date().toISOString()
-  });
   
   try {
     const authHeader = req.headers['authorization'];
@@ -22,7 +16,7 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
     
-    console.log('🔑 Token found, verifying...');
+    
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
@@ -50,12 +44,6 @@ export const authenticateToken = async (req, res, next) => {
       email: user.email,
       type: user.type
     };
-    
-    console.log('✅ Auth successful:', {
-      userId: user._id,
-      email: user.email,
-      type: user.type
-    });
 
     next();
 

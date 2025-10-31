@@ -46,7 +46,7 @@ export default function PaymentModal({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
-  const [paymentDueDate, setPaymentDueDate] = useState('');
+  const [paymentPaidDate, setPaymentPaidDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [distributionInfo, setDistributionInfo] = useState<{
@@ -109,7 +109,7 @@ export default function PaymentModal({
     if (selectedDate) {
       setSelectedDate(selectedDate);
       const formattedDate = selectedDate.toISOString().split('T')[0];
-      setPaymentDueDate(formattedDate);
+      setPaymentPaidDate(formattedDate);
     }
   };
 
@@ -128,7 +128,7 @@ export default function PaymentModal({
       paymentMethod: paymentMethod,
       notes: paymentNotes,
       customAmount: amount,
-      dueDate: paymentDueDate
+      paidDate: paymentPaidDate
     };
 
     onPayment(paymentData);
@@ -145,7 +145,7 @@ export default function PaymentModal({
       paymentMethod: paymentMethod,
       notes: paymentNotes,
       customAmount: amount,
-      dueDate: paymentDueDate
+      paidDate: paymentPaidDate
     };
 
     if (onUpdatePayment) {
@@ -167,7 +167,7 @@ export default function PaymentModal({
     setPaymentAmount('');
     setPaymentMethod('cash');
     setPaymentNotes('');
-    setPaymentDueDate('');
+    setPaymentPaidDate(new Date().toISOString().split('T')[0]);
     setDistributionInfo(null);
     setShowDatePicker(false);
     setSelectedDate(new Date());
@@ -187,20 +187,20 @@ export default function PaymentModal({
       setPaymentMethod(mode === 'edit' ? (selectedInstallment.paymentMethod || 'cash') : 'cash');
       setPaymentNotes(mode === 'edit' ? (selectedInstallment.notes || '') : '');
       
-      let dueDate = '';
-      if (selectedInstallment.dueDate) {
+      let paidDate = '';
+      if (selectedInstallment.paidDate) {
         try {
-          const date = new Date(selectedInstallment.dueDate);
+          const date = new Date(selectedInstallment.paidDate);
           if (!isNaN(date.getTime())) {
-            dueDate = date.toISOString().split('T')[0];
+            paidDate = date.toISOString().split('T')[0];
           } else {
-            dueDate = selectedInstallment.dueDate;
+            paidDate = selectedInstallment.paidDate;
           }
         } catch (error) {
-          dueDate = selectedInstallment.dueDate;
+          paidDate = selectedInstallment.paidDate;
         }
       }
-      setPaymentDueDate(dueDate);
+      setPaymentPaidDate(paidDate || new Date().toISOString().split('T')[0]);
       setDistributionInfo(null);
     } else if (!visible) {
       // Reset all states when modal is closed
@@ -256,11 +256,11 @@ export default function PaymentModal({
                   </Text>
                 </View>
                 <View style={styles.installmentInfoRow}>
-                  <Text style={[styles.installmentInfoLabel, { color: colors.lightText }]}>
-                    {mode === 'edit' ? 'Paid Date:' : 'Due Date:'}
+                  <Text style={[styles.installmentInfoLabel, { color: colors.lightText }]}> 
+                    Paid Date:
                   </Text>
-                  <Text style={[styles.installmentInfoValue, { color: colors.lightText }]}>
-                    {mode === 'edit' ? formatDate(selectedInstallment.paidDate) : formatDate(selectedInstallment.dueDate)}
+                  <Text style={[styles.installmentInfoValue, { color: colors.lightText }]}> 
+                    {formatDate(selectedInstallment.paidDate)}
                   </Text>
                 </View>
                 <View style={styles.installmentInfoRow}>
@@ -361,11 +361,11 @@ export default function PaymentModal({
                 </View>
               </View>
 
-              {/* Due Date */}
+              {/* Paid Date */}
               <View style={styles.inputGroup}>
                 <View style={styles.inputLabelRow}>
                   <Ionicons name="calendar" size={18} color={mode === 'edit' ? colors.warning : colors.primary} />
-                  <Text style={[styles.inputLabel, { color: colors.text }]}>Due Date *</Text>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Paid Date</Text>
                 </View>
                 <TouchableOpacity
                   style={[styles.datePickerButton, { 
@@ -376,14 +376,14 @@ export default function PaymentModal({
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.datePickerText, { 
-                    color: paymentDueDate ? colors.text : colors.lightText 
+                    color: paymentPaidDate ? colors.text : colors.lightText 
                   }]}>
-                    {paymentDueDate ? formatDate(paymentDueDate) : 'Select Due Date'}
+                    {paymentPaidDate ? formatDate(paymentPaidDate) : 'Select Paid Date'}
                   </Text>
                   <Ionicons name="calendar-outline" size={20} color={mode === 'edit' ? colors.warning : colors.primary} />
                 </TouchableOpacity>
                 <Text style={[styles.inputHint, { color: colors.lightText }]}>
-                  Tap to select the due date for this installment.
+                  Tap to select the paid date for this installment.
                 </Text>
               </View>
 
@@ -469,7 +469,6 @@ export default function PaymentModal({
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleDateChange}
-            minimumDate={new Date()}
           />
         )}
       </View>

@@ -27,12 +27,6 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log(`📋 Headers:`, {
-    authorization: req.headers.authorization ? 'Bearer ***' : 'None',
-    'content-type': req.headers['content-type'],
-    'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
-  });
   next();
 });
 

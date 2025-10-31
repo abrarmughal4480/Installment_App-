@@ -169,15 +169,15 @@ export default function InstallmentDetails() {
       return;
     }
 
-    if (!paymentData.dueDate) {
-      showError('Please enter due date');
+    if (!paymentData.paidDate) {
+      showError('Please enter paid date');
       return;
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(paymentData.dueDate)) {
-      showError('Please enter due date in YYYY-MM-DD format');
+    if (!dateRegex.test(paymentData.paidDate)) {
+      showError('Please enter paid date in YYYY-MM-DD format');
       return;
     }
 
@@ -256,15 +256,15 @@ export default function InstallmentDetails() {
       return;
     }
 
-    if (!paymentData.dueDate) {
-      showError('Please enter due date');
+    if (!paymentData.paidDate) {
+      showError('Please enter paid date');
       return;
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(paymentData.dueDate)) {
-      showError('Please enter due date in YYYY-MM-DD format');
+    if (!dateRegex.test(paymentData.paidDate)) {
+      showError('Please enter paid date in YYYY-MM-DD format');
       return;
     }
 
@@ -277,7 +277,7 @@ export default function InstallmentDetails() {
           paymentMethod: paymentData.paymentMethod,
           notes: paymentData.notes,
           customAmount: amount,
-          dueDate: paymentData.dueDate
+          paidDate: paymentData.paidDate
         }
       );
 

@@ -43,14 +43,6 @@ export const getDashboardStats = async (req, res) => {
       }
     });
     
-    console.log('Calculated stats:', {
-      totalProductsSold,
-      totalInstallments,
-      pendingPayments,
-      completedPayments,
-      totalRevenue
-    });
-    
     // Get total managers count
     const totalManagers = await User.countDocuments({ 
       type: 'admin' 
@@ -71,16 +63,12 @@ export const getDashboardStats = async (req, res) => {
       recentActivities: formattedActivities
     };
     
-    console.log('Final dashboard stats being sent:', JSON.stringify(stats, null, 2));
-    
     res.json({
       success: true,
       data: stats
     });
     
   } catch (error) {
-    console.error('Dashboard stats error:', error);
-    
     // Return default values on error
     res.json({
       success: true,
@@ -115,15 +103,12 @@ export const getManagers = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log('Found managers:', managers.length);
-
     res.json({
       success: true,
       managers: managers
     });
 
   } catch (error) {
-    console.error('Get managers error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch managers',
@@ -165,21 +150,12 @@ export const deleteManager = async (req, res) => {
     // Delete the manager
     await User.findByIdAndDelete(id);
 
-    console.log('🗑️ Manager deleted:', {
-      id: id,
-      name: manager.name,
-      email: manager.email,
-      type: manager.type,
-      timestamp: new Date().toISOString()
-    });
-
     res.json({
       success: true,
       message: 'Manager deleted successfully'
     });
 
   } catch (error) {
-    console.error('Delete manager error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete manager',
@@ -298,7 +274,6 @@ export const updateManager = async (req, res) => {
           editType === 'email' ? 'email_changed' : 'password_reset'
         );
       } catch (emailError) {
-        console.error('Email sending error:', emailError);
         // Don't fail the update if email fails
       }
     }
@@ -315,7 +290,6 @@ export const updateManager = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update manager error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update manager',
@@ -371,8 +345,6 @@ export const addManager = async (req, res) => {
 
     await newManager.save();
 
-    console.log('New manager created:', { name, email, type: 'manager' });
-
     res.json({
       success: true,
       message: 'Manager added successfully',
@@ -386,7 +358,6 @@ export const addManager = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Add manager error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to add manager',
@@ -494,7 +465,6 @@ export const addSampleData = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Add sample data error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to add sample data',
@@ -632,7 +602,6 @@ export const getAllInstallments = async (req, res) => {
       nextMonth: filteredInstallments.filter(i => i.isNextMonth).length
     });
   } catch (error) {
-    console.error('Error fetching installments:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch installments'

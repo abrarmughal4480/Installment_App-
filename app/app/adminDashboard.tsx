@@ -1188,16 +1188,16 @@ export default function AdminDashboard() {
                   <Text style={[styles.installmentId, { color: colors.lightText }]}>
                     Phone: {installment.customerPhone ? `+92 300 ${installment.customerPhone.slice(-7)}` : '+92 300 0000000'}
                   </Text>
-                  {installment.reference && installment.reference !== '.' && installment.reference.trim() !== '' && (
+                  {installment.reference && installment.reference !== '.' && installment.reference.trim() !== '' ? (
                     <Text style={[styles.installmentId, { color: colors.lightText }]}>
                       Reference: {installment.reference}
                     </Text>
-                  )}
-                  {user?.type === 'admin' && installment.manager && (
+                  ) : null}
+                  {user?.type === 'admin' && installment.manager ? (
                     <Text style={[styles.installmentId, { color: colors.lightText }]}>
                       Manager: {installment.manager.name}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
                 <View style={styles.headerActions}>
                   <View style={[

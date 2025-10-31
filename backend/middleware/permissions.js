@@ -3,10 +3,6 @@ import User from '../models/User.js';
 // Middleware to check if user has view permissions
 export const requireViewPermission = async (req, res, next) => {
   try {
-    console.log('🔒 PERMISSION MIDDLEWARE HIT - requireViewPermission');
-    console.log('👤 User ID:', req.user.userId);
-    console.log('📧 User Email:', req.user.email);
-    
     const user = await User.findById(req.user.userId);
     
     if (!user) {
@@ -19,12 +15,6 @@ export const requireViewPermission = async (req, res, next) => {
 
     // Main admin bypasses all permission checks
     if (user.isMainAdmin()) {
-      console.log('✅ MAIN ADMIN - Bypassing permission checks');
-      req.userPermissions = {
-        canViewData: true,
-        canAddData: true,
-        isMainAdmin: true
-      };
       return next();
     }
 
@@ -77,12 +67,6 @@ export const requireAddPermission = async (req, res, next) => {
 
     // Main admin bypasses all permission checks
     if (user.isMainAdmin()) {
-      console.log('✅ MAIN ADMIN - Bypassing add permission checks');
-      req.userPermissions = {
-        canViewData: true,
-        canAddData: true,
-        isMainAdmin: true
-      };
       return next();
     }
 
@@ -140,10 +124,6 @@ export const requireMainAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Main admin check error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    //do nothing
   }
 };

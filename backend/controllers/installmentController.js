@@ -167,7 +167,6 @@ export const getInstallments = async (req, res) => {
       installments: installments
     });
   } catch (error) {
-    console.error('Error fetching installments:', error.message);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch installments'
@@ -234,7 +233,6 @@ export const getInstallment = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching installment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch installment'
@@ -423,7 +421,6 @@ export const createInstallments = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error creating installments:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create installments'
@@ -440,7 +437,8 @@ export const payInstallment = async (req, res) => {
       paymentMethod = 'cash', 
       notes = '',
       customAmount = null, // Allow custom payment amount
-      dueDate = null // Allow custom due date
+      dueDate = null, // Allow custom due date
+      paidDate = null // Allow custom paid date
     } = req.body;
     
     const installmentPlan = await Installment.findById(installmentId);
@@ -482,8 +480,44 @@ export const payInstallment = async (req, res) => {
       }
     }
 
+    // Log BEFORE state - all installments of this product
+    const beforeState = {
+      productName: installmentPlan.productName,
+      customerName: installmentPlan.customerName,
+      customerId: installmentPlan.customerId,
+      installmentId: installmentId.toString(),
+      timestamp: new Date().toISOString(),
+      action: 'PAYMENT_ADDED',
+      before: {
+        totalAmount: installmentPlan.totalAmount,
+        advanceAmount: installmentPlan.advanceAmount,
+        installments: installmentPlan.installments.map(inst => ({
+          installmentNumber: inst.installmentNumber,
+          amount: inst.amount,
+          actualPaidAmount: inst.actualPaidAmount || null,
+          status: inst.status,
+          dueDate: inst.dueDate,
+          paidDate: inst.paidDate || null
+        }))
+      }
+    };
+
     // Update the specific installment in the array
-    installment.paidDate = new Date();
+    // Use provided paidDate if valid, otherwise current time
+    if (paidDate) {
+      try {
+        const providedPaidDate = new Date(paidDate);
+        if (!isNaN(providedPaidDate.getTime())) {
+          installment.paidDate = providedPaidDate;
+        } else {
+          installment.paidDate = new Date();
+        }
+      } catch (error) {
+        installment.paidDate = new Date();
+      }
+    } else {
+      installment.paidDate = new Date();
+    }
     installment.status = 'paid';
     installment.paymentMethod = paymentMethod;
     installment.notes = notes;
@@ -508,10 +542,11 @@ export const payInstallment = async (req, res) => {
     // Calculate difference between paid amount and current installment amount
     const difference = actualPaidAmount - installment.amount;
     
-    // Get remaining installments after current one (including paid installments with 0 amount)
+    // Get remaining installments after current one (including pending, overdue, and paid installments with 0 amount)
+    // Same logic applies to both pending and overdue installments
     const remainingInstallments = installmentPlan.installments.filter(inst => 
       inst.installmentNumber > installment.installmentNumber && 
-      (inst.status === 'pending' || (inst.status === 'paid' && inst.amount === 0))
+      (inst.status === 'pending' || inst.status === 'overdue' || (inst.status === 'paid' && inst.amount === 0))
     );
     
     // Track if all remaining installments were paid
@@ -537,7 +572,7 @@ export const payInstallment = async (req, res) => {
           const originalAmount = remainingInst.amount;
           
           remainingInst.status = 'paid';
-          remainingInst.paidDate = new Date();
+          remainingInst.paidDate = installment.paidDate || new Date();
           remainingInst.paymentMethod = paymentMethod;
           remainingInst.notes = notes || `Paid in advance with excess from installment #${installment.installmentNumber}`;
           remainingInst.paidBy = req.user.userId;
@@ -601,11 +636,18 @@ export const payInstallment = async (req, res) => {
         // Excess payment - create new installment
         const nextInstallmentNumber = installmentPlan.installments.length + 1;
         const lastInstallmentDate = installmentPlan.installments[installmentPlan.installments.length - 1]?.dueDate || new Date();
+        // Calculate future due date (ensure it's in the future)
+        const futureDueDate = new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Ensure the date is at least 30 days from now
+        const now = new Date();
+        if (futureDueDate <= now) {
+          futureDueDate.setTime(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        }
         const newInstallment = {
           installmentNumber: nextInstallmentNumber,
           amount: difference,
-          dueDate: new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days after last installment
-          status: 'pending'
+          dueDate: futureDueDate,
+          status: 'pending' // Always pending for new installments from excess
         };
         installmentPlan.installments.push(newInstallment);
         allRemainingPaid = false;
@@ -614,11 +656,18 @@ export const payInstallment = async (req, res) => {
         const remainingAmount = Math.abs(difference);
         const nextInstallmentNumber = installmentPlan.installments.length + 1;
         const lastInstallmentDate = installmentPlan.installments[installmentPlan.installments.length - 1]?.dueDate || new Date();
+        // Calculate future due date (ensure it's in the future)
+        const futureDueDate = new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Ensure the date is at least 30 days from now
+        const now = new Date();
+        if (futureDueDate <= now) {
+          futureDueDate.setTime(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        }
         const newInstallment = {
           installmentNumber: nextInstallmentNumber,
           amount: remainingAmount,
-          dueDate: new Date(lastInstallmentDate.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days after last installment
-          status: 'pending'
+          dueDate: futureDueDate,
+          status: 'pending' // Always pending for new installments
         };
         installmentPlan.installments.push(newInstallment);
         allRemainingPaid = false;
@@ -627,9 +676,49 @@ export const payInstallment = async (req, res) => {
     
     await installmentPlan.save();
 
-    // Calculate distribution info for response
-    const stillPendingInstallments = installmentPlan.installments.filter(inst => 
-      inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+    // Reload to get updated state
+    const updatedPlan = await Installment.findById(installmentId);
+
+    // Log AFTER state - all installments of this product
+    const afterState = {
+      productName: updatedPlan.productName,
+      customerName: updatedPlan.customerName,
+      customerId: updatedPlan.customerId,
+      installmentId: installmentId.toString(),
+      timestamp: new Date().toISOString(),
+      action: 'PAYMENT_ADDED',
+      paymentDetails: {
+        installmentNumber: parseInt(installmentNumber),
+        customAmount: customAmount !== null ? parseFloat(customAmount) : null,
+        paymentMethod: paymentMethod,
+        notes: notes,
+        paidBy: req.user.userId
+      },
+      after: {
+        totalAmount: updatedPlan.totalAmount,
+        advanceAmount: updatedPlan.advanceAmount,
+        installments: updatedPlan.installments.map(inst => ({
+          installmentNumber: inst.installmentNumber,
+          amount: inst.amount,
+          actualPaidAmount: inst.actualPaidAmount || null,
+          status: inst.status,
+          dueDate: inst.dueDate,
+          paidDate: inst.paidDate || null
+        }))
+      }
+    };
+
+    // Log complete before/after state
+    console.log('='.repeat(80));
+    console.log('📝 PAYMENT ADDED - INSTALLMENT STATE CHANGE');
+    console.log(`Product: ${beforeState.productName} | Customer: ${beforeState.customerName} | Customer ID: ${beforeState.customerId}`);
+    console.log('='.repeat(80));
+    console.log(JSON.stringify({ before: beforeState.before, after: afterState.after }, null, 2));
+    console.log('='.repeat(80));
+
+    // Calculate distribution info for response (include both pending and overdue)
+    const stillPendingOrOverdueInstallments = installmentPlan.installments.filter(inst => 
+      (inst.status === 'pending' || inst.status === 'overdue') && inst.installmentNumber > installment.installmentNumber
     );
     
     let distributionInfo = null;
@@ -639,14 +728,14 @@ export const payInstallment = async (req, res) => {
         allPaid: true,
         message: `All remaining installments (${remainingInstallments.length}) marked as paid. Total amount cleared: Rs. ${totalRemainingAmount.toLocaleString()}`
       };
-    } else if (difference !== 0 && stillPendingInstallments.length > 0) {
+    } else if (difference !== 0 && stillPendingOrOverdueInstallments.length > 0) {
       distributionInfo = {
         difference: difference,
-        distributedTo: stillPendingInstallments.length,
-        amountPerInstallment: Math.ceil(Math.abs(difference / stillPendingInstallments.length)),
+        distributedTo: stillPendingOrOverdueInstallments.length,
+        amountPerInstallment: Math.ceil(Math.abs(difference / stillPendingOrOverdueInstallments.length)),
         message: difference > 0 
-          ? `Excess payment of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingInstallments.length)).toLocaleString()} each)`
-          : `Shortfall of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingInstallments.length)).toLocaleString()} each)`
+          ? `Excess payment of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingOrOverdueInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingOrOverdueInstallments.length)).toLocaleString()} each)`
+          : `Shortfall of Rs. ${Math.abs(difference).toLocaleString()} distributed across ${stillPendingOrOverdueInstallments.length} remaining installments (Rs. ${Math.ceil(Math.abs(difference / stillPendingOrOverdueInstallments.length)).toLocaleString()} each)`
       };
     }
 
@@ -667,7 +756,6 @@ export const payInstallment = async (req, res) => {
       distribution: distributionInfo
     });
   } catch (error) {
-    console.error('Error paying installment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to mark installment as paid'
@@ -684,7 +772,8 @@ export const updatePayment = async (req, res) => {
       paymentMethod = 'cash', 
       notes = '',
       customAmount = null, // Allow custom payment amount
-      dueDate = null // Allow custom due date
+      dueDate = null, // Allow custom due date
+      paidDate = null // Allow custom paid date
     } = req.body;
     
     const installmentPlan = await Installment.findById(installmentId);
@@ -746,6 +835,18 @@ export const updatePayment = async (req, res) => {
       }
     }
     
+    // Update paid date if provided (for edits)
+    if (paidDate) {
+      try {
+        const newPaidDate = new Date(paidDate);
+        if (!isNaN(newPaidDate.getTime())) {
+          installment.paidDate = newPaidDate;
+        }
+      } catch (error) {
+        // Invalid date format, ignore
+      }
+    }
+    
     // Store the new actual paid amount (custom or original)
     const newPaidAmount = customAmount !== null ? parseFloat(customAmount) : installment.amount;
     installment.actualPaidAmount = newPaidAmount;
@@ -753,10 +854,10 @@ export const updatePayment = async (req, res) => {
     // Calculate difference between old and new paid amount
     const amountDifference = newPaidAmount - oldPaidAmount;
     
-    // If there's a difference, redistribute it among remaining unpaid installments
+    // If there's a difference, redistribute it among remaining unpaid installments (pending and overdue)
     if (amountDifference !== 0) {
       const remainingInstallments = installmentPlan.installments.filter(inst => 
-        inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+        (inst.status === 'pending' || inst.status === 'overdue') && inst.installmentNumber > installment.installmentNumber
       );
       
       if (remainingInstallments.length > 0) {
@@ -779,9 +880,9 @@ export const updatePayment = async (req, res) => {
     
     await installmentPlan.save();
 
-    // Calculate distribution info for response
+    // Calculate distribution info for response (include both pending and overdue)
     const remainingInstallments = installmentPlan.installments.filter(inst => 
-      inst.status === 'pending' && inst.installmentNumber > installment.installmentNumber
+      (inst.status === 'pending' || inst.status === 'overdue') && inst.installmentNumber > installment.installmentNumber
     );
     
     const distributionInfo = amountDifference !== 0 && remainingInstallments.length > 0 ? {
@@ -810,7 +911,6 @@ export const updatePayment = async (req, res) => {
       distribution: distributionInfo
     });
   } catch (error) {
-    console.error('Error updating payment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update payment'
@@ -883,7 +983,6 @@ export const markInstallmentUnpaid = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error marking installment as unpaid:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to mark installment as unpaid'
@@ -925,7 +1024,6 @@ export const updateInstallment = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating installment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update installment'
@@ -969,7 +1067,6 @@ export const deleteInstallment = async (req, res) => {
       message: 'Installment deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting installment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete installment'
@@ -1057,7 +1154,6 @@ export const getCustomerInstallments = async (req, res) => {
       totalInstallments: installments.length
     });
   } catch (error) {
-    console.error('Error fetching customer installments:', error);
     res.status(500).json({
       success: false,
       message: 'We\'re having trouble loading your installments. Please try again in a moment.'

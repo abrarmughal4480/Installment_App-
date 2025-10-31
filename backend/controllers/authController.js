@@ -84,7 +84,6 @@ export const checkEmailExists = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Check email error:', error);
     res.status(500).json({
       success: false,
       message: 'Oops! Something went wrong. Please try again in a moment.'
@@ -165,7 +164,6 @@ export const sendOTP = async (req, res) => {
         message: 'Perfect! We\'ve sent a verification code to your email. Please check your inbox.'
       });
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
       res.status(500).json({
         success: false,
         message: 'We\'re having trouble sending the verification code. Please try again in a moment.'
@@ -173,7 +171,6 @@ export const sendOTP = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Send OTP error:', error);
     res.status(500).json({
       success: false,
       message: 'Oops! Something went wrong. Please try again in a moment.'
@@ -231,7 +228,6 @@ export const verifyOTP = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Verify OTP error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -358,7 +354,6 @@ export const register = async (req, res) => {
     try {
       await emailService.sendWelcomeEmail(user.email, user.name);
     } catch (emailError) {
-      console.error('Welcome email error:', emailError);
       // Don't fail registration if welcome email fails
     }
 
@@ -373,7 +368,6 @@ export const register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -532,7 +526,6 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -571,7 +564,6 @@ export const getProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -589,7 +581,6 @@ export const logout = async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    console.error('Logout error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -675,7 +666,6 @@ export const changePassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Change password error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -700,7 +690,6 @@ export const cleanupExpiredOTP = async () => {
     if (cleanedCount > 0) {
     }
   } catch (error) {
-    console.error('Cleanup expired OTP error:', error);
   }
 };
 
@@ -719,7 +708,6 @@ export const checkAddAdminPermission = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Check add admin permission error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -801,7 +789,6 @@ export const addAdmin = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Add admin error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error. Please try again later.'
@@ -824,36 +811,12 @@ export const getAdmins = async (req, res) => {
       .select('-password -otp -otpExpires')
       .sort({ createdAt: -1 });
 
-    // Log admin permissions status
-    console.log('🔐 Admin Permissions Status:');
-    console.log('================================');
-    
-    admins.forEach((admin, index) => {
-      const isMainAdmin = admin.email === 'installmentadmin@app.com';
-      const hasViewData = admin.permissions?.canViewData || false;
-      const hasAddData = admin.permissions?.canAddData || false;
-      const status = isMainAdmin ? 'MAIN ADMIN' : (hasViewData && hasAddData ? 'UNLOCKED' : 'LOCKED');
-      
-      console.log(`${index + 1}. ${admin.name || 'No Name'} (${admin.email})`);
-      console.log(`   Status: ${status}`);
-      console.log(`   Can View Data: ${hasViewData}`);
-      console.log(`   Can Add Data: ${hasAddData}`);
-      if (admin.permissions?.grantedBy) {
-        console.log(`   Granted By: ${admin.permissions.grantedBy}`);
-        console.log(`   Granted At: ${admin.permissions.grantedAt}`);
-      }
-      console.log('   ---');
-    });
-    
-    console.log(`📊 Total Admins: ${admins.length}`);
-    console.log('================================');
 
     res.json({
       success: true,
       admins: admins
     });
   } catch (error) {
-    console.error('Get admins error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch admins' 
@@ -899,7 +862,6 @@ export const deleteAdmin = async (req, res) => {
       message: 'Admin deleted successfully'
     });
   } catch (error) {
-    console.error('Delete admin error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to delete admin' 
@@ -967,7 +929,6 @@ export const resetAdminPassword = async (req, res) => {
       message: 'Admin password reset successfully'
     });
   } catch (error) {
-    console.error('Reset admin password error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to reset admin password' 
@@ -1015,7 +976,6 @@ export const updateAdminName = async (req, res) => {
       message: 'Admin name updated successfully'
     });
   } catch (error) {
-    console.error('Update admin name error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update admin name' 
@@ -1069,7 +1029,6 @@ export const updateAdminPermissions = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Update admin permissions error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update admin permissions' 
@@ -1112,7 +1071,6 @@ export const getMyPermissions = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get permissions error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to get permissions' 
