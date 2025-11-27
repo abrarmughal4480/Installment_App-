@@ -623,6 +623,7 @@ class ApiService {
     password: string;
     investmentAmount: number;
     monthlyProfit?: number;
+    joinDate?: string;
   }): Promise<{
     success: boolean;
     message?: string;
@@ -729,6 +730,7 @@ class ApiService {
     interestRate: number;
     duration: number;
     notes?: string;
+    startDate?: string;
   }): Promise<{
     success: boolean;
     message?: string;
@@ -751,6 +753,8 @@ class ApiService {
     duration?: number;
     status?: string;
     notes?: string;
+    startDate?: string;
+    paidAmount?: number;
   }): Promise<{
     success: boolean;
     message?: string;

@@ -33,7 +33,7 @@ export const getInvestors = async (req, res) => {
 // Add new investor
 export const addInvestor = async (req, res) => {
   try {
-    const { name, email, phone, password, investmentAmount, monthlyProfit } = req.body;
+    const { name, email, phone, password, investmentAmount, monthlyProfit, joinDate } = req.body;
 
     // Validation
     if (!name || !email || !phone || !password || investmentAmount === undefined || investmentAmount === null) {
@@ -65,6 +65,7 @@ export const addInvestor = async (req, res) => {
       type: 'investor',
       investmentAmount,
       monthlyProfit: monthlyProfit || 0, // Use provided value or default to 0
+      joinDate: joinDate ? new Date(joinDate) : new Date(),
       isActive: true
     });
 

@@ -737,6 +737,7 @@ export default function AdminDashboard() {
     const newMonthlyInstallment = installment.newMonthlyInstallment || 0;
     const totalInstallments = installment.installmentCount || 0;
     const totalPaidInstallments = installment.totalPaidInstallments || 0;
+    const advanceAmount = installment.advanceAmount || 0;
 
     
     router.push({
@@ -752,7 +753,7 @@ export default function AdminDashboard() {
         productName: installment.productName,
         productDescription: installment.productDescription,
         totalAmount: remainingAmount.toString(),
-        advanceAmount: '0', 
+        advanceAmount: advanceAmount.toString(), 
         installmentCount: remainingInstallments.toString(),
         installmentUnit: installment.installmentUnit,
         monthlyInstallment: newMonthlyInstallment.toString(),
@@ -1294,7 +1295,7 @@ export default function AdminDashboard() {
                   <View style={styles.installmentCol}>
                     <Text style={[styles.installmentLabel, { color: colors.lightText }]}>Remaining</Text>
                     <Text style={[styles.installmentValue, { color: colors.warning }]}>
-                      {installment.totalUnpaidInstallments || 0} installments
+                      {formatCurrency(installment.remainingAmount || 0)}
                     </Text>
                   </View>
                 </View>

@@ -693,6 +693,31 @@ export default function InstallmentDetails() {
                     </Text>
                   </View>
                   <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>Remaining</Text>
+                    <Text style={[styles.summaryValue, { 
+                      color: '#FF6B6B',
+                      textShadowColor: 'rgba(0, 0, 0, 0.4)',
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 2,
+                    }]}>
+                      {(() => {
+                        const totalAmount = Number(params.totalAmount);
+                        const advanceAmount = installmentPlan?.advanceAmount || 0;
+                        const paidInstallments = installmentPlan?.installments?.filter((inst: any) => inst.status === 'paid') || [];
+                        const paidAmount = paidInstallments.reduce((sum: number, inst: any) => {
+                          const amount = inst.actualPaidAmount || inst.amount;
+                          const roundedAmount = roundUp(amount);
+                          return sum + roundedAmount;
+                        }, 0);
+                        const totalPaid = roundUp(advanceAmount + paidAmount);
+                        const remainingAmount = totalAmount - totalPaid;
+                        return formatCurrency(remainingAmount > 0 ? remainingAmount : 0);
+                      })()}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.summaryGrid, { marginTop: 16 }]}>
+                  <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Monthly Payment</Text>
                     <Text style={[styles.summaryValue, { 
                       color: '#4ECDC4',

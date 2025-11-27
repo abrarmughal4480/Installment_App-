@@ -68,7 +68,7 @@ export const getLoansByInvestor = async (req, res) => {
 // Add new loan
 export const addLoan = async (req, res) => {
   try {
-    const { investorName, loanAmount, interestRate, duration, notes } = req.body;
+    const { investorName, loanAmount, interestRate, duration, notes, startDate } = req.body;
     const createdBy = req.user?.id;
     const userType = req.user?.type;
     
@@ -96,7 +96,7 @@ export const addLoan = async (req, res) => {
       duration: parseInt(duration),
       notes: notes || '',
       createdBy,
-      startDate: new Date(),
+      startDate: startDate ? new Date(startDate) : new Date(),
       paidAmount: 0
     });
     
@@ -123,7 +123,7 @@ export const addLoan = async (req, res) => {
 export const updateLoan = async (req, res) => {
   try {
     const { id } = req.params;
-    const { loanAmount, interestRate, duration, status, notes } = req.body;
+    const { loanAmount, interestRate, duration, status, notes, startDate, paidAmount } = req.body;
     const userType = req.user?.type;
     
     // Only admin can update loans
@@ -148,6 +148,8 @@ export const updateLoan = async (req, res) => {
     if (duration !== undefined) loan.duration = parseInt(duration);
     if (status !== undefined) loan.status = status;
     if (notes !== undefined) loan.notes = notes;
+    if (startDate !== undefined) loan.startDate = new Date(startDate);
+    if (paidAmount !== undefined) loan.paidAmount = parseFloat(paidAmount);
     
     await loan.save();
     

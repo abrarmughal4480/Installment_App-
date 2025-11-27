@@ -33,12 +33,15 @@ app.use((req, res, next) => {
 // MongoDB Connection
 const connectDB = async () => {
   try {
-    const mongoURI = 'mongodb+srv://abrarmughal4481:1122@nobody.7d6kr.mongodb.net/installments_app?retryWrites=true&w=majority&appName=nobody';
-    
+    const mongoURI = process.env.MONGODB_URI;
+    if (!mongoURI) {
+      console.error('❌ MONGODB_URI is not set in environment variables');
+      process.exit(1);
+    }
     await mongoose.connect(mongoURI);
-    
     console.log('✅ MongoDB connected successfully');
-    console.log(`📊 Database: ${mongoose.connection.name}`);
+    console.log(`🔌 Using URI DB name segment: ${mongoURI.split('/').pop().split('?')[0]}`);
+    console.log(`📊 Connected Database (mongoose): ${mongoose.connection.name}`);
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
     process.exit(1);
@@ -50,14 +53,24 @@ connectDB();
 
 // Routes
 app.get('/', (req, res) => {
+  const envDbName = (process.env.MONGODB_URI || '').split('/').pop()?.split('?')[0] || null;
+  const isDbConnected = mongoose.connection.readyState === 1;
+
   res.json({ 
     message: 'Installment Tracker API Server is running!',
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    server: {
+      running: true,
+      framework: 'express',
+      port: Number(PORT),
+      env: process.env.NODE_ENV || 'development'
+    },
     database: {
-      status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      name: mongoose.connection.name
+      connected: isDbConnected,
+      name: mongoose.connection.name || null,
+      envDb: envDbName
     }
   });
 });
@@ -100,7 +113,6 @@ app.use((error, req, res, next) => {
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
-  console.log(`🌐 Accessible from network at http://192.168.43.120:${PORT}`);
   console.log(`✅ Server started successfully!`);
 });
 

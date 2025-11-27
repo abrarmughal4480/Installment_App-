@@ -9,9 +9,11 @@ import {
   Animated,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
@@ -28,6 +30,7 @@ interface Investor {
   investmentAmount: number;
   monthlyProfit: number;
   totalProfit?: number;
+  joinDate?: string;
   createdAt: string;
   lastLogin?: string;
   profitHistory?: Array<{
@@ -69,6 +72,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
   
   // Password visibility state
   const [showPassword, setShowPassword] = useState(false);
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
   
   // Form input states
   const [formData, setFormData] = useState({
@@ -80,6 +84,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
     confirmPassword: '',
     investmentAmount: '',
     monthlyProfit: '',
+    joinDate: new Date(),
   });
   
   // Profit distribution form data
@@ -224,6 +229,22 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
     });
   };
 
+  const formatDateForInput = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleEditDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEditDatePicker(false);
+    }
+    if (selectedDate) {
+      setFormData(prev => ({ ...prev, joinDate: selectedDate }));
+    }
+  };
+
   const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString()}`;
 
   // Calculate total profit from profit history
@@ -315,6 +336,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
       confirmPassword: '',
       investmentAmount: investor.investmentAmount?.toString() || '',
       monthlyProfit: investor.monthlyProfit?.toString() || '',
+      joinDate: investor.joinDate ? new Date(investor.joinDate) : new Date(investor.createdAt),
     });
     
     if (editType === 'name') {
@@ -339,6 +361,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
       confirmPassword: '',
       investmentAmount: investor.investmentAmount?.toString() || '',
       monthlyProfit: investor.monthlyProfit?.toString() || '',
+      joinDate: investor.joinDate ? new Date(investor.joinDate) : new Date(investor.createdAt),
     });
     setShowEditModal(true);
   };
@@ -358,6 +381,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         investmentAmount: parseFloat(formData.investmentAmount),
+        joinDate: formData.joinDate.toISOString(),
       };
 
       // Only include password if provided
@@ -673,6 +697,25 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Total Investment Summary Card */}
+      {investors.length > 0 && (
+        <View style={[styles.totalInvestmentCard, { backgroundColor: colors.cardBackground }]}>
+          <View style={styles.totalInvestmentContent}>
+            <View style={[styles.totalInvestmentIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="wallet" size={24} color={colors.primary} />
+            </View>
+            <View style={styles.totalInvestmentInfo}>
+              <Text style={[styles.totalInvestmentLabel, { color: colors.lightText }]}>
+                Total Investment
+              </Text>
+              <Text style={[styles.totalInvestmentValue, { color: colors.primary }]}>
+                {formatCurrency(investors.reduce((sum, investor) => sum + (investor.investmentAmount || 0), 0))}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
       
       {filteredInvestors.length === 0 ? (
         <View style={[styles.emptyState, { backgroundColor: colors.cardBackground }]}>
@@ -772,7 +815,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 <View style={styles.investorCol}>
                   <Text style={[styles.investorLabel, { color: colors.lightText }]}>Joined</Text>
                   <Text style={[styles.investorValue, { color: colors.text }]}>
-                    {formatDate(investor.createdAt)}
+                    {formatDate(investor.joinDate || investor.createdAt)}
                   </Text>
                 </View>
               </View>
@@ -912,6 +955,45 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                     placeholderTextColor={colors.lightText}
                     keyboardType="numeric"
                   />
+                </View>
+
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Join Date
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }]}
+                    onPress={() => setShowEditDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '500' }}>
+                      {formatDateForInput(formData.joinDate)}
+                    </Text>
+                    <Ionicons name="calendar" size={20} color={colors.lightText} />
+                  </TouchableOpacity>
+                  {showEditDatePicker && (
+                    <DateTimePicker
+                      value={formData.joinDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleEditDateChange}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                  {Platform.OS === 'ios' && showEditDatePicker && (
+                    <TouchableOpacity
+                      style={[styles.datePickerDoneButton, { backgroundColor: colors.primary }]}
+                      onPress={() => setShowEditDatePicker(false)}
+                    >
+                      <Text style={styles.datePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
                 <View style={styles.inputField}>
@@ -1233,7 +1315,15 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                        nestedScrollEnabled={true}
                      >
                        <View style={styles.profitHistoryList}>
-                         {selectedInvestorDetails.profitHistory.map((profit, index) => (
+                         {[...selectedInvestorDetails.profitHistory]
+                           .sort((a, b) => {
+                             // Sort by month descending (latest first)
+                             const monthCompare = b.month.localeCompare(a.month);
+                             if (monthCompare !== 0) return monthCompare;
+                             // If same month, sort by createdAt descending (latest first)
+                             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                           })
+                           .map((profit, index) => (
                            <View key={index} style={styles.profitHistoryItem}>
                              <View style={styles.profitHistoryInfo}>
                                <Text style={[styles.profitHistoryMonth, { color: colors.text }]}>
@@ -1441,6 +1531,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     opacity: 0.8,
+  },
+
+  // Total Investment Card Styles
+  totalInvestmentCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  totalInvestmentContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  totalInvestmentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  totalInvestmentInfo: {
+    flex: 1,
+  },
+  totalInvestmentLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  totalInvestmentValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
 
   // Skeleton Styles
@@ -1988,6 +2117,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  datePickerDoneButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  datePickerDoneText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

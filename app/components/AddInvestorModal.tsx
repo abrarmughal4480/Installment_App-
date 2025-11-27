@@ -7,8 +7,10 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
 
@@ -28,6 +30,7 @@ export default function AddInvestorModal({
   const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,7 +38,24 @@ export default function AddInvestorModal({
     password: '',
     investmentAmount: '',
     monthlyProfit: '',
+    joinDate: new Date(),
   });
+
+  const formatDate = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setFormData(prev => ({ ...prev, joinDate: selectedDate }));
+    }
+  };
 
   const handleSubmit = async () => {
     // Validation
@@ -104,6 +124,7 @@ export default function AddInvestorModal({
         password: formData.password.trim(),
         investmentAmount: investmentAmount,
         monthlyProfit: monthlyProfit,
+        joinDate: formData.joinDate.toISOString(),
       });
 
       if (response.success) {
@@ -114,7 +135,8 @@ export default function AddInvestorModal({
           phone: '', 
           password: '', 
           investmentAmount: '', 
-          monthlyProfit: '' 
+          monthlyProfit: '',
+          joinDate: new Date(),
         });
         setShowPassword(false);
         onSuccess();
@@ -137,7 +159,8 @@ export default function AddInvestorModal({
       phone: '', 
       password: '', 
       investmentAmount: '', 
-      monthlyProfit: '' 
+      monthlyProfit: '',
+      joinDate: new Date(),
     });
     setShowPassword(false);
     onClose();
@@ -303,6 +326,45 @@ export default function AddInvestorModal({
                 keyboardType="numeric"
               />
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Join Date
+              </Text>
+              <TouchableOpacity
+                style={[styles.inputContainer, { 
+                  backgroundColor: colors.background, 
+                  borderColor: colors.border,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }]}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.textInput, { color: colors.text }]}>
+                  {formatDate(formData.joinDate)}
+                </Text>
+                <Ionicons name="calendar" size={20} color={colors.lightText} />
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={formData.joinDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
+              {Platform.OS === 'ios' && showDatePicker && (
+                <TouchableOpacity
+                  style={[styles.datePickerDoneButton, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </ScrollView>
 
           {/* Footer */}
@@ -464,6 +526,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  datePickerDoneButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  datePickerDoneText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

@@ -314,10 +314,15 @@ export const createInstallments = async (req, res) => {
       // Get existing paid installments to preserve them
       const existingPaidInstallments = installment.installments.filter(inst => inst.status === 'paid');
       
+      // Calculate new remaining amount after advance
+      const newAdvanceAmount = advanceAmount || 0;
+      const remainingAfterAdvance = totalAmount - newAdvanceAmount;
+      const newMonthlyInstallment = Math.ceil(remainingAfterAdvance / installmentCount);
+      
       // Create new installments array with existing paid ones + new remaining ones
       const newInstallmentsArray = [...existingPaidInstallments];
       
-      // Add new remaining installments
+      // Add new remaining installments with recalculated amount
       for (let i = 1; i <= installmentCount; i++) {
         const dueDateObj = new Date(firstDueDate);
         
@@ -333,13 +338,13 @@ export const createInstallments = async (req, res) => {
         
         newInstallmentsArray.push({
           installmentNumber: existingPaidInstallments.length + i,
-          amount: monthlyInstallment,
+          amount: newMonthlyInstallment,
           dueDate: dueDateObj,
           status: 'pending'
         });
       }
 
-      // Update the installment
+      // Update the installment with new advance amount and recalculated monthly installment
       installment.customerName = name;
       installment.customerEmail = email;
       installment.customerPhone = phone;
@@ -348,10 +353,10 @@ export const createInstallments = async (req, res) => {
       installment.productName = productName;
       installment.productDescription = productDescription || '';
       installment.totalAmount = totalAmount;
-      installment.advanceAmount = advanceAmount || 0;
+      installment.advanceAmount = newAdvanceAmount;
       installment.installmentCount = existingPaidInstallments.length + installmentCount;
       installment.installmentUnit = installmentUnit;
-      installment.monthlyInstallment = monthlyInstallment;
+      installment.monthlyInstallment = newMonthlyInstallment;
       installment.startDate = start;
       installment.dueDay = parseInt(dueDate);
       installment.installments = newInstallmentsArray;
@@ -361,12 +366,14 @@ export const createInstallments = async (req, res) => {
 
       res.status(200).json({
         success: true,
-        message: 'Installments updated successfully',
+        message: 'Installments updated successfully. Advance amount and remaining installments have been recalculated.',
         installment: {
           id: installment._id,
           customerName: installment.customerName,
           productName: installment.productName,
           totalAmount: installment.totalAmount,
+          advanceAmount: installment.advanceAmount,
+          monthlyInstallment: installment.monthlyInstallment,
           installmentCount: installment.installmentCount,
           installments: installment.installments.map(inst => ({
             installmentNumber: inst.installmentNumber,

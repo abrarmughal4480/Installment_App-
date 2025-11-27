@@ -295,7 +295,7 @@ export default function CreateInstallment() {
       productName: params.productName as string || '',
       productDescription: params.productDescription as string || '',
       totalAmount: formatNumberWithCommas(params.remainingAmount as string || ''),
-      advanceAmount: '0', 
+      advanceAmount: formatNumberWithCommas(params.advanceAmount as string || '0'), 
       installmentCount: params.installmentCount as string || '',
       installmentUnit: params.installmentUnit as string || 'months',
       monthlyInstallment: formatNumberWithCommas(params.monthlyInstallment as string || ''),
@@ -444,24 +444,42 @@ export default function CreateInstallment() {
     }
   };
 
-  const calculateMonthlyInstallment = () => {
-    const total = Number(removeCommas(formData.totalAmount));
-    const advance = isEditMode ? 0 : (Number(removeCommas(formData.advanceAmount)) || 0);
-    const count = Number(formData.installmentCount);
-    
-    if (total > 0 && count > 0) {
-      const remainingAmount = total - advance;
-      const monthly = Math.ceil(remainingAmount / count); 
-      setFormData(prev => ({
-        ...prev,
-        monthlyInstallment: formatNumberWithCommas(monthly)
-      }));
-    }
-  };
-
+  // Real-time calculation when amounts change
   useEffect(() => {
-    calculateMonthlyInstallment();
-  }, [formData.totalAmount, formData.installmentCount, formData.advanceAmount]);
+    // Small delay to ensure state is updated
+    const timer = setTimeout(() => {
+      const total = Number(removeCommas(formData.totalAmount)) || 0;
+      const advance = Number(removeCommas(formData.advanceAmount)) || 0;
+      const count = Number(formData.installmentCount) || 0;
+      
+      if (total > 0 && count > 0) {
+        let monthly;
+        if (isEditMode) {
+          // In edit mode, totalAmount is already remaining amount (paid excluded)
+          monthly = Math.ceil(total / count);
+        } else {
+          // In new mode, subtract advance from total
+          const remainingAmount = total - advance;
+          monthly = Math.ceil(remainingAmount / count);
+        }
+        
+        const formattedMonthly = formatNumberWithCommas(monthly);
+        
+        setFormData(prev => {
+          // Only update if value changed to avoid infinite loop
+          if (prev.monthlyInstallment !== formattedMonthly) {
+            return {
+              ...prev,
+              monthlyInstallment: formattedMonthly
+            };
+          }
+          return prev;
+        });
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [formData.totalAmount, formData.installmentCount, formData.advanceAmount, isEditMode]);
 
   if (isLoading) {
     return (
@@ -945,37 +963,37 @@ export default function CreateInstallment() {
 
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.text }]}>
-                    {isEditMode ? 'Advance Amount (Not applicable for remaining)' : 'Advance Amount'}
+                    Advance Amount {isEditMode ? '(Update if needed)' : ''}
                   </Text>
                   <TextInput
                     style={[
                       styles.textInput,
                       { 
-                        borderColor: errors.advanceAmount ? colors.danger : colors.border,
-                        backgroundColor: isEditMode ? colors.border : colors.cardBackground,
-                        opacity: isEditMode ? 0.6 : 1
+                        borderColor: errors.advanceAmount ? colors.danger : colors.border
                       }
                     ]}
                     value={formData.advanceAmount}
                     onChangeText={(text) => {
-                      if (!isEditMode) {
-                        const numericValue = removeCommas(text);
-                        if (numericValue === '' || !isNaN(Number(numericValue))) {
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            advanceAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
-                          }));
-                        }
+                      const numericValue = removeCommas(text);
+                      if (numericValue === '' || !isNaN(Number(numericValue))) {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          advanceAmount: numericValue === '' ? '' : formatNumberWithCommas(numericValue)
+                        }));
                       }
                     }}
-                    placeholder={isEditMode ? "Not applicable for remaining installments" : "Advance paid (optional) (e.g., 1,00,000)"}
+                    placeholder="Advance paid (optional) (e.g., 1,00,000)"
                     placeholderTextColor={colors.lightText}
                     keyboardType="numeric"
-                    editable={!isEditMode}
                   />
                   {errors.advanceAmount && (
                     <Text style={[styles.errorText, { color: colors.danger }]}>
                       {errors.advanceAmount}
+                    </Text>
+                  )}
+                  {isEditMode && (
+                    <Text style={[styles.helpText, { color: colors.warning }]}>
+                      Changing advance amount will recalculate all remaining installments
                     </Text>
                   )}
                 </View>

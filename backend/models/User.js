@@ -47,6 +47,10 @@ const userSchema = new mongoose.Schema({
     },
     min: 0
   },
+  joinDate: {
+    type: Date,
+    default: Date.now
+  },
   monthlyProfit: {
     type: Number,
     required: function() {

@@ -9,9 +9,11 @@ import {
   Animated,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
@@ -76,6 +78,22 @@ export default function LoansSection({ colors }: LoansSectionProps) {
     interestRate: '',
     duration: '',
     notes: '',
+    startDate: new Date(),
+  });
+  
+  // Date picker states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
+  
+  // Edit form data
+  const [editFormData, setEditFormData] = useState({
+    loanAmount: '',
+    interestRate: '',
+    duration: '',
+    status: 'active',
+    notes: '',
+    startDate: new Date(),
+    paidAmount: '',
   });
   
   // Payment form data
@@ -299,6 +317,7 @@ export default function LoansSection({ colors }: LoansSectionProps) {
         interestRate: parseFloat(formData.interestRate),
         duration: parseInt(formData.duration),
         notes: formData.notes.trim(),
+        startDate: formData.startDate.toISOString(),
       });
 
       if (response.success) {
@@ -310,6 +329,7 @@ export default function LoansSection({ colors }: LoansSectionProps) {
           interestRate: '',
           duration: '',
           notes: '',
+          startDate: new Date(),
         });
         loadLoans(false);
       } else {
@@ -350,6 +370,60 @@ export default function LoansSection({ colors }: LoansSectionProps) {
       console.error('Add payment error:', error);
       showError('Failed to add payment. Please try again.');
     }
+  };
+
+  const handleEditLoan = async () => {
+    if (!editFormData.loanAmount.trim() || !editFormData.interestRate.trim() || 
+        !editFormData.duration.trim()) {
+      showError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const response = await apiService.updateLoan(selectedLoan!._id, {
+        loanAmount: parseFloat(editFormData.loanAmount),
+        interestRate: parseFloat(editFormData.interestRate),
+        duration: parseInt(editFormData.duration),
+        status: editFormData.status,
+        notes: editFormData.notes.trim(),
+        startDate: editFormData.startDate.toISOString(),
+        paidAmount: editFormData.paidAmount ? parseFloat(editFormData.paidAmount) : undefined,
+      });
+
+      if (response.success) {
+        showSuccess('Loan updated successfully');
+        setShowEditModal(false);
+        setEditFormData({
+          loanAmount: '',
+          interestRate: '',
+          duration: '',
+          status: 'active',
+          notes: '',
+          startDate: new Date(),
+          paidAmount: '',
+        });
+        loadLoans(false);
+      } else {
+        showError(response.message || 'Failed to update loan');
+      }
+    } catch (error) {
+      console.error('Update loan error:', error);
+      showError('Failed to update loan. Please try again.');
+    }
+  };
+
+  const openEditModal = (loan: Loan) => {
+    setSelectedLoan(loan);
+    setEditFormData({
+      loanAmount: loan.loanAmount.toString(),
+      interestRate: loan.interestRate.toString(),
+      duration: loan.duration.toString(),
+      status: loan.status,
+      notes: loan.notes || '',
+      startDate: loan.startDate ? new Date(loan.startDate) : new Date(),
+      paidAmount: loan.paidAmount ? loan.paidAmount.toString() : '0',
+    });
+    setShowEditModal(true);
   };
 
   const handleDeleteLoan = async (loan: Loan) => {
@@ -639,7 +713,7 @@ export default function LoansSection({ colors }: LoansSectionProps) {
               <View style={styles.headerActions}>
                 {/* Share button */}
                 <TouchableOpacity
-                  style={[styles.cardActionButton, { backgroundColor: colors.primary }]}
+                  style={[styles.cardActionButton, { backgroundColor: colors.success }]}
                   onPress={(e) => {
                     e.stopPropagation(); 
                     handleShareLoan(loan);
@@ -647,6 +721,17 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="share" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+                {/* Edit button */}
+                <TouchableOpacity
+                  style={[styles.cardActionButton, { backgroundColor: colors.primary }]}
+                  onPress={(e) => {
+                    e.stopPropagation(); 
+                    openEditModal(loan);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="create" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
                 {/* Payment button */}
                 <TouchableOpacity
@@ -1012,6 +1097,43 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                   </View>
                 </View>
                 
+                {/* Start Date Picker */}
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Loan Start Date *
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.datePickerButton, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                    }]}
+                    onPress={() => setShowStartDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.datePickerText, { color: colors.text }]}>
+                      {formData.startDate.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                  {showStartDatePicker && (
+                    <DateTimePicker
+                      value={formData.startDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowStartDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setFormData(prev => ({ ...prev, startDate: selectedDate }));
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+                
                 <View style={styles.inputField}>
                   <Text style={[styles.inputLabel, { color: colors.text }]}>
                     Notes (Optional)
@@ -1177,6 +1299,228 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Payment</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Edit Loan Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
+            {/* Header */}
+            <View style={[styles.modalHeader, { backgroundColor: colors.warning + '10' }]}>
+              <View style={styles.headerContent}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.warning }]}>
+                  <Ionicons name="pencil" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    Edit Loan
+                  </Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.lightText }]}>
+                    {selectedLoan?.investorName} - Loan #{selectedLoan?.loanId}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowEditModal(false)}
+                style={[styles.closeButton, { backgroundColor: colors.border }]}
+              >
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Content */}
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.inputContainer}>
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Loan Amount (Rs.) *
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      color: colors.text 
+                    }]}
+                    value={editFormData.loanAmount}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, loanAmount: text }))}
+                    placeholder="Enter loan amount"
+                    placeholderTextColor={colors.lightText}
+                    keyboardType="numeric"
+                  />
+                </View>
+                
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Paid Amount (Rs.)
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      color: colors.text 
+                    }]}
+                    value={editFormData.paidAmount}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, paidAmount: text }))}
+                    placeholder="Enter paid amount"
+                    placeholderTextColor={colors.lightText}
+                    keyboardType="numeric"
+                  />
+                </View>
+                
+                <View style={styles.inputRow}>
+                  <View style={styles.inputCol}>
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>
+                      Interest Rate (%) *
+                    </Text>
+                    <TextInput
+                      style={[styles.textInput, { 
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.border,
+                        color: colors.text 
+                      }]}
+                      value={editFormData.interestRate}
+                      onChangeText={(text) => setEditFormData(prev => ({ ...prev, interestRate: text }))}
+                      placeholder="e.g., 5"
+                      placeholderTextColor={colors.lightText}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  
+                  <View style={styles.inputCol}>
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>
+                      Duration (months) *
+                    </Text>
+                    <TextInput
+                      style={[styles.textInput, { 
+                        backgroundColor: colors.cardBackground,
+                        borderColor: colors.border,
+                        color: colors.text 
+                      }]}
+                      value={editFormData.duration}
+                      onChangeText={(text) => setEditFormData(prev => ({ ...prev, duration: text }))}
+                      placeholder="e.g., 12"
+                      placeholderTextColor={colors.lightText}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+                
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Status
+                  </Text>
+                  <View style={styles.paymentMethodContainer}>
+                    {['active', 'completed', 'defaulted', 'cancelled'].map((status) => (
+                      <TouchableOpacity
+                        key={status}
+                        style={[
+                          styles.paymentMethodButton,
+                          { 
+                            backgroundColor: editFormData.status === status 
+                              ? getStatusColor(status)
+                              : colors.border 
+                          }
+                        ]}
+                        onPress={() => setEditFormData(prev => ({ ...prev, status }))}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[
+                          styles.paymentMethodText,
+                          { 
+                            color: editFormData.status === status 
+                              ? '#FFFFFF' 
+                              : colors.text 
+                          }
+                        ]}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                
+                {/* Start Date Picker for Edit */}
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Loan Start Date
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.datePickerButton, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                    }]}
+                    onPress={() => setShowEditDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color={colors.warning} />
+                    <Text style={[styles.datePickerText, { color: colors.text }]}>
+                      {editFormData.startDate.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                  {showEditDatePicker && (
+                    <DateTimePicker
+                      value={editFormData.startDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowEditDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setEditFormData(prev => ({ ...prev, startDate: selectedDate }));
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+                
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Notes (Optional)
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      color: colors.text 
+                    }]}
+                    value={editFormData.notes}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, notes: text }))}
+                    placeholder="Enter any additional notes"
+                    placeholderTextColor={colors.lightText}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+            
+            {/* Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowEditModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: colors.warning }]}
+                onPress={handleEditLoan}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Update Loan</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1887,5 +2231,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  
+  // Date Picker Styles
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  datePickerText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
