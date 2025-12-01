@@ -30,9 +30,10 @@ interface Manager {
 interface ManagersSectionProps {
   colors: any;
   onManagerClick?: (managerId: string) => void;
+  isActive?: boolean;
 }
 
-export default function ManagersSection({ colors, onManagerClick }: ManagersSectionProps) {
+export default function ManagersSection({ colors, onManagerClick, isActive = true }: ManagersSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [managers, setManagers] = useState<Manager[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,8 +90,11 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
   const shimmerOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    loadManagers();
-  }, []);
+    // Only load managers when section is active
+    if (isActive) {
+      loadManagers();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (isLoading) {
@@ -472,6 +476,7 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -577,6 +582,7 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditInfoModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -673,6 +679,7 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditEmailModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -772,6 +779,7 @@ export default function ManagersSection({ colors, onManagerClick }: ManagersSect
         transparent
         animationType="fade"
         onRequestClose={() => setShowResetPasswordModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>

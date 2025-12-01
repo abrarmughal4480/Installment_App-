@@ -172,6 +172,7 @@ export default function AddInvestorModal({
       transparent
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
-    maxHeight: '90%',
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',

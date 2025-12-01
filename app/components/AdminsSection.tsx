@@ -35,9 +35,10 @@ interface Admin {
 interface AdminsSectionProps {
   colors: any;
   user?: any;
+  isActive?: boolean;
 }
 
-export default function AdminsSection({ colors, user }: AdminsSectionProps) {
+export default function AdminsSection({ colors, user, isActive = true }: AdminsSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const { refreshPermissions } = usePermissions();
   const [admins, setAdmins] = useState<Admin[]>([]);
@@ -110,8 +111,11 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
   const canAddAdmin = user?.type === 'admin' && user?.email === 'installmentadmin@app.com';
 
   useEffect(() => {
-    loadAdmins();
-  }, []);
+    // Only load admins when section is active
+    if (isActive) {
+      loadAdmins();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (isLoading) {
@@ -611,6 +615,7 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditInfoModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -831,6 +836,7 @@ export default function AdminsSection({ colors, user }: AdminsSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowAddAdminModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>

@@ -19,6 +19,8 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
 import AddInvestorModal from './AddInvestorModal';
 import PDFGenerator from './PDFGenerator';
+import ProfitHistoryModal from './ProfitHistoryModal';
+import InvestorDetailsModal from './InvestorDetailsModal';
 
 interface Investor {
   _id: string;
@@ -43,9 +45,10 @@ interface Investor {
 
 interface InvestorsSectionProps {
   colors: any;
+  isActive?: boolean;
 }
 
-export default function InvestorsSection({ colors }: InvestorsSectionProps) {
+export default function InvestorsSection({ colors, isActive = true }: InvestorsSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +115,10 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
   const [showInvestorDetailsModal, setShowInvestorDetailsModal] = useState(false);
   const [selectedInvestorDetails, setSelectedInvestorDetails] = useState<Investor | null>(null);
   
+  // Profit history modal state
+  const [showProfitHistoryModal, setShowProfitHistoryModal] = useState(false);
+  const [selectedInvestorForProfitHistory, setSelectedInvestorForProfitHistory] = useState<Investor | null>(null);
+  
   // Drag functionality for investor details modal
   const [isDetailsDragging, setIsDetailsDragging] = useState(false);
   const [detailsDragValue, setDetailsDragValue] = useState(0);
@@ -125,8 +132,11 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
   const shimmerOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    loadInvestors();
-  }, []);
+    // Only load investors when section is active
+    if (isActive) {
+      loadInvestors();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (isLoading) {
@@ -454,14 +464,14 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
             const ratio = investorInvestment / totalInvestment;
             const investorProfit = netProfit * ratio;
             
-            // Apply round-off +1 logic only if amount has decimal points
-            const roundedProfit = investorProfit % 1 !== 0 ? Math.round(investorProfit) + 1 : Math.round(investorProfit);
+            // Use exact profit amount without rounding
+            const exactProfit = parseFloat(investorProfit.toFixed(2));
             
             return {
               ...investor,
               ratio: ratio,
-              profitAmount: roundedProfit,
-              formattedProfit: roundedProfit.toLocaleString('en-PK', {
+              profitAmount: exactProfit,
+              formattedProfit: exactProfit.toLocaleString('en-PK', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
               })
@@ -787,6 +797,18 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
                 >
                   <Ionicons name="trash" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
+                {/* Profit History button */}
+                <TouchableOpacity
+                  style={[styles.cardActionButton, { backgroundColor: colors.warning }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSelectedInvestorForProfitHistory(investor);
+                    setShowProfitHistoryModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="time-outline" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -856,6 +878,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -1072,6 +1095,7 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowProfitDistributionModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.profitModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -1225,135 +1249,29 @@ export default function InvestorsSection({ colors }: InvestorsSectionProps) {
         </View>
       </Modal>
 
+      {/* Profit History Modal */}
+      <ProfitHistoryModal
+        visible={showProfitHistoryModal}
+        onClose={() => {
+          setShowProfitHistoryModal(false);
+          setSelectedInvestorForProfitHistory(null);
+        }}
+        investorId={selectedInvestorForProfitHistory?._id || ''}
+        investorName={selectedInvestorForProfitHistory?.name || ''}
+        profitHistory={selectedInvestorForProfitHistory?.profitHistory}
+        onSuccess={() => loadInvestors(false)}
+        colors={colors}
+      />
+      
       {/* Investor Details Modal */}
-      <Modal
+      <InvestorDetailsModal
         visible={showInvestorDetailsModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowInvestorDetailsModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowInvestorDetailsModal(false)}
-        >
-          <TouchableOpacity 
-            style={[styles.investorDetailsModal, { backgroundColor: colors.cardBackground }]}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <View style={styles.investorDetailsHeader}>
-              <View style={styles.investorDetailsHeaderText}>
-                <Text style={[styles.investorDetailsTitle, { color: colors.text }]}>
-                  Investor Details
-                </Text>
-                <Text style={[styles.investorDetailsSubtitle, { color: colors.lightText }]}>
-                  {selectedInvestorDetails?.name || 'Loading...'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowInvestorDetailsModal(false)}
-                style={styles.investorDetailsCloseButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close" size={24} color={colors.lightText} />
-              </TouchableOpacity>
-            </View>
-
-            {selectedInvestorDetails && (
-              <ScrollView style={styles.investorDetailsContent} showsVerticalScrollIndicator={false}>
-                {/* Investment Summary */}
-                <View style={[styles.investorDetailsCard, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.investorDetailsCardTitle, { color: colors.text }]}>
-                    Investment Summary
-                  </Text>
-                  
-                  {/* Investment Stats - Center Layout like Revenue Overview */}
-                  <View style={styles.investorDetailsStats}>
-                    {/* Investment Amount - Center */}
-                    <View style={styles.investorDetailsItem}>
-                      <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
-                        Investment Amount
-                      </Text>
-                      <Text style={[styles.investorDetailsValue, { color: colors.success }]}>
-                        {formatCurrency(selectedInvestorDetails.investmentAmount || 0)}
-                      </Text>
-                    </View>
-                    
-                    {/* Monthly Profit and Total Profit - Side by Side */}
-                    <View style={styles.investorDetailsRow}>
-                      <View style={styles.investorDetailsItem}>
-                        <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
-                          Monthly Profit
-                        </Text>
-                        <Text style={[styles.investorDetailsValue, { color: colors.warning }]}>
-                          {formatCurrency(selectedInvestorDetails.monthlyProfit || 0)}
-                        </Text>
-                      </View>
-                      <View style={styles.investorDetailsItem}>
-                        <Text style={[styles.investorDetailsLabel, { color: colors.lightText }]}>
-                          Profit Earned
-                        </Text>
-                        <Text style={[styles.investorDetailsValue, { color: colors.primary }]}>
-                          {formatCurrency(calculateTotalProfit(selectedInvestorDetails))}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                 {/* Profit History */}
-                 <View style={[styles.investorDetailsCard, { backgroundColor: colors.background }]}>
-                   <Text style={[styles.investorDetailsCardTitle, { color: colors.text }]}>
-                     Profit History by Month
-                   </Text>
-                   {selectedInvestorDetails.profitHistory && selectedInvestorDetails.profitHistory.length > 0 ? (
-                     <ScrollView 
-                       style={styles.profitHistoryScrollContainer}
-                       showsVerticalScrollIndicator={true}
-                       nestedScrollEnabled={true}
-                     >
-                       <View style={styles.profitHistoryList}>
-                         {[...selectedInvestorDetails.profitHistory]
-                           .sort((a, b) => {
-                             // Sort by month descending (latest first)
-                             const monthCompare = b.month.localeCompare(a.month);
-                             if (monthCompare !== 0) return monthCompare;
-                             // If same month, sort by createdAt descending (latest first)
-                             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-                           })
-                           .map((profit, index) => (
-                           <View key={index} style={styles.profitHistoryItem}>
-                             <View style={styles.profitHistoryInfo}>
-                               <Text style={[styles.profitHistoryMonth, { color: colors.text }]}>
-                                 {profit.month}
-                               </Text>
-                               <Text style={[styles.profitHistoryDate, { color: colors.lightText }]}>
-                                 {formatDate(profit.createdAt)}
-                               </Text>
-                             </View>
-                             <Text style={[styles.profitHistoryAmount, { color: colors.success }]}>
-                               {formatCurrency(profit.profit)}
-                             </Text>
-                           </View>
-                         ))}
-                       </View>
-                     </ScrollView>
-                   ) : (
-                     <View style={styles.emptyProfitHistory}>
-                       <Ionicons name="receipt-outline" size={32} color={colors.lightText} />
-                       <Text style={[styles.emptyProfitHistoryText, { color: colors.lightText }]}>
-                         No profit history available
-                       </Text>
-                     </View>
-                   )}
-                 </View>
-              </ScrollView>
-            )}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setShowInvestorDetailsModal(false)}
+        investor={selectedInvestorDetails}
+        colors={colors}
+        formatCurrency={formatCurrency}
+        calculateTotalProfit={calculateTotalProfit}
+      />
     </View>
   );
 }
@@ -1947,171 +1865,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Investor Details Modal Styles
-  investorDetailsModal: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    maxHeight: '90%',
-    marginTop: 40,
-  },
-  investorDetailsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  investorDetailsHeaderText: {
-    flex: 1,
-  },
-  investorDetailsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  investorDetailsSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 2,
-    opacity: 0.8,
-  },
-  investorDetailsCloseButton: {
-    padding: 4,
-  },
-  investorDetailsContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  investorDetailsCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  investorDetailsInfo: {
-    alignItems: 'center',
-  },
-  investorDetailsName: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: -0.3,
-    textAlign: 'center',
-  },
-  investorDetailsEmail: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  investorDetailsPhone: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  investorDetailsJoined: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  investorDetailsCardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-    letterSpacing: -0.3,
-  },
-  investorDetailsStats: {
-    flexDirection: 'column',
-    gap: 16,
-  },
-  investorDetailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 20,
-  },
-  investorDetailsItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  investorDetailsCol: {
-    flex: 1,
-    marginRight: 16,
-  },
-  investorDetailsLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  investorDetailsValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  profitHistoryScrollContainer: {
-    maxHeight: 200,
-    marginTop: 8,
-  },
-  profitHistoryList: {
-    marginTop: 8,
-  },
-  profitHistoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.02)',
-    marginBottom: 8,
-  },
-  profitHistoryInfo: {
-    flex: 1,
-  },
-  profitHistoryMonth: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  profitHistoryDate: {
-    fontSize: 12,
-    fontWeight: '500',
-    opacity: 0.7,
-  },
-  profitHistoryAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  emptyProfitHistory: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyProfitHistoryText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 12,
-    textAlign: 'center',
-  },
   eyeButton: {
     padding: 8,
     marginRight: 8,

@@ -344,3 +344,59 @@ export const getLoanStats = async (req, res) => {
   }
 };
 
+// Add additional amount to existing loan
+export const addAdditionalAmount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { additionalAmount, reason, addedDate } = req.body;
+    const userType = req.user?.type;
+    
+    if (userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only admin can add additional amount.'
+      });
+    }
+    
+    const loan = await Loan.findById(id);
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Loan not found'
+      });
+    }
+    
+    if (loan.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot add amount to completed loan'
+      });
+    }
+    
+    // Add to additional amount history with provided date or current date
+    loan.additionalAmountHistory.push({
+      addedDate: addedDate ? new Date(addedDate) : new Date(),
+      additionalAmount: parseFloat(additionalAmount),
+      reason: reason || ''
+    });
+    
+    // Increase loan amount
+    loan.loanAmount += parseFloat(additionalAmount);
+    
+    await loan.save();
+    await loan.populate('createdBy', 'name email');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Additional amount added successfully',
+      data: loan
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add additional amount',
+      error: error.message
+    });
+  }
+};
+

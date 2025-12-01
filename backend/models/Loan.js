@@ -81,6 +81,21 @@ const loanSchema = new mongoose.Schema({
       maxlength: 500
     }
   }],
+  additionalAmountHistory: [{
+    addedDate: {
+      type: Date,
+      default: Date.now
+    },
+    additionalAmount: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    reason: {
+      type: String,
+      maxlength: 500
+    }
+  }],
   notes: {
     type: String,
     maxlength: 1000

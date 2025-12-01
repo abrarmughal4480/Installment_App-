@@ -325,6 +325,89 @@ export const getInvestorProfitHistory = async (req, res) => {
   }
 };
 
+// Update investor profit history (for bulk import of old records)
+export const updateInvestorProfitHistory = async (req, res) => {
+  try {
+    const { investorId, profitHistory } = req.body;
+
+    // Validation
+    if (!investorId || !profitHistory || !Array.isArray(profitHistory)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Investor ID and profit history array are required'
+      });
+    }
+
+    // Validate profit history records
+    for (const record of profitHistory) {
+      if (!record.month || record.profit === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each profit record must have month and profit fields'
+        });
+      }
+
+      if (!/^\d{4}-\d{2}$/.test(record.month)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Month must be in YYYY-MM format'
+        });
+      }
+
+      if (isNaN(Number(record.profit)) || Number(record.profit) < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Profit amount must be a non-negative number'
+        });
+      }
+    }
+
+    const investor = await User.findById(investorId);
+
+    if (!investor || investor.type !== 'investor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Investor not found'
+      });
+    }
+
+    // Replace profit history with new data
+    investor.profitHistory = profitHistory.map(record => ({
+      month: record.month,
+      profit: Number(record.profit),
+      createdAt: new Date()
+    }));
+
+    // Update current and previous month profits based on new history
+    investor.updateCurrentAndPreviousMonthProfits();
+
+    // Set monthly profit to current month profit
+    investor.monthlyProfit = investor.currentMonthProfit;
+
+    await investor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profit history updated successfully',
+      data: {
+        investorId: investor._id,
+        investorName: investor.name,
+        profitHistoryCount: investor.profitHistory.length,
+        totalProfit: investor.profitHistory.reduce((sum, p) => sum + p.profit, 0),
+        currentMonthProfit: investor.currentMonthProfit,
+        previousMonthProfit: investor.previousMonthProfit
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profit history',
+      error: error.message
+    });
+  }
+};
+
 // Get investor by ID
 export const getInvestorById = async (req, res) => {
   try {

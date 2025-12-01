@@ -7,7 +7,8 @@ import {
   addLoanPayment,
   deleteLoan,
   getLoanById,
-  getLoanStats
+  getLoanStats,
+  addAdditionalAmount
 } from '../controllers/loanController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireViewPermission, requireAddPermission, requireMainAdmin } from '../middleware/permissions.js';
@@ -37,6 +38,9 @@ router.put('/:id', requireAddPermission, updateLoan);
 
 // Add payment to loan (requires add permission)
 router.post('/:id/payment', requireAddPermission, addLoanPayment);
+
+// Add additional amount to loan (requires add permission)
+router.post('/:id/add-amount', requireAddPermission, addAdditionalAmount);
 
 // Delete loan (requires add permission)
 router.delete('/:id', requireAddPermission, deleteLoan);

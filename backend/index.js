@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import installmentRoutes from './routes/installments.js';
@@ -22,11 +21,42 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing middleware - use express built-in parser
+// Handle both JSON and text/plain (for React Native compatibility)
+app.use((req, res, next) => {
+  if (req.headers['content-type']?.includes('text/plain')) {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        req.body = JSON.parse(body);
+        next();
+      } catch (e) {
+        req.body = {};
+        next();
+      }
+    });
+  } else {
+    next();
+  }
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging middleware
 app.use((req, res, next) => {
+  if (req.path === '/api/auth/change-password') {
+    console.log('📥 Request received:', {
+      method: req.method,
+      path: req.path,
+      contentType: req.headers['content-type'],
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : 'no body'
+    });
+  }
   next();
 });
 

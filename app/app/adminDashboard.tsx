@@ -49,6 +49,12 @@ export default function AdminDashboard() {
   const [lastPermissionRefresh, setLastPermissionRefresh] = useState<number>(0);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [filter, setFilter] = useState<'all' | 'active' | 'overdue' | 'completed'>('all');
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,6 +105,15 @@ export default function AdminDashboard() {
   
   const createModalSlideY = useRef(new Animated.Value(200)).current;
   const createModalOpacity = useRef(new Animated.Value(0)).current;
+  
+  const changePasswordModalSlideY = useRef(new Animated.Value(200)).current;
+  const changePasswordModalOpacity = useRef(new Animated.Value(0)).current;
+  const [isChangePasswordDragging, setIsChangePasswordDragging] = useState(false);
+  const [changePasswordDragValue, setChangePasswordDragValue] = useState(0);
+  const [changePasswordLastTap, setChangePasswordLastTap] = useState(0);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (isLoading) {
@@ -193,18 +208,7 @@ export default function AdminDashboard() {
         hasViewPermission: hasViewPermission()
       });
     }
-  }, [user, permissionsLoading, hasViewPermission]);
-
-  
-  useEffect(() => {
-    if (user && !permissionsLoading && hasViewPermission()) {
-      const interval = setInterval(() => {
-        loadInstallments(false); 
-      }, 5000); 
-
-      return () => clearInterval(interval);
-    }
-  }, [user, permissionsLoading, hasViewPermission]);
+  }, [user, permissionsLoading, permissions]);
 
   
   useEffect(() => {
@@ -233,6 +237,24 @@ export default function AdminDashboard() {
       setCreateLastTap(0);
     }
   }, [showCreateModal]);
+
+  useEffect(() => {
+    if (!showChangePasswordModal) {
+      changePasswordModalSlideY.setValue(200);
+      changePasswordModalOpacity.setValue(0);
+      setIsChangePasswordDragging(false);
+      setChangePasswordDragValue(0);
+      setChangePasswordLastTap(0);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    }
+  }, [showChangePasswordModal]);
 
   
   useEffect(() => {
@@ -277,6 +299,25 @@ export default function AdminDashboard() {
       }, 10); 
     }
   }, [showCreateModal]);
+
+  useEffect(() => {
+    if (showChangePasswordModal) {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(changePasswordModalSlideY, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(changePasswordModalOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 10);
+    }
+  }, [showChangePasswordModal]);
 
   const loadUserData = async () => {
     try {
@@ -425,6 +466,74 @@ export default function AdminDashboard() {
       setShowCreateModal(false);
     } else {
       setCreateLastTap(now);
+    }
+  };
+
+  const handleChangePasswordDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (changePasswordLastTap && (now - changePasswordLastTap) < DOUBLE_TAP_DELAY) {
+      setShowChangePasswordModal(false);
+    } else {
+      setChangePasswordLastTap(now);
+    }
+  };
+
+  const handleChangePasswordDragStart = () => {
+    setIsChangePasswordDragging(true);
+  };
+
+  const handleChangePasswordDragMove = (event: any) => {
+    const { translationY } = event.nativeEvent;
+    
+    if (translationY >= 0 && translationY <= 500) {
+      changePasswordModalSlideY.setValue(translationY);
+      setChangePasswordDragValue(translationY);
+      
+      const opacity = Math.max(0.2, 1 - (translationY / 500));
+      changePasswordModalOpacity.setValue(opacity);
+    }
+  };
+
+  const handleChangePasswordDragEnd = (event: any) => {
+    const { translationY, velocityY } = event.nativeEvent;
+    
+    setIsChangePasswordDragging(false);
+    setChangePasswordDragValue(0);
+    
+    if (translationY > 150 || velocityY > 800) {
+      Animated.parallel([
+        Animated.timing(changePasswordModalSlideY, {
+          toValue: 600,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(changePasswordModalOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowChangePasswordModal(false);
+      });
+    } else {
+      Animated.parallel([
+        Animated.spring(changePasswordModalSlideY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 9,
+          overshootClamping: true,
+        }),
+        Animated.spring(changePasswordModalOpacity, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 9,
+          overshootClamping: true,
+        }),
+      ]).start();
     }
   };
 
@@ -692,6 +801,46 @@ export default function AdminDashboard() {
       await clearUserData();
       showSuccess('Logged out successfully');
       router.replace('/');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      // Validation
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        showError('All fields are required');
+        return;
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        showError('New password must be at least 6 characters long');
+        return;
+      }
+
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        showError('New password and confirm password do not match');
+        return;
+      }
+
+      const response = await apiService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (response.success) {
+        showSuccess('Password changed successfully');
+        setShowChangePasswordModal(false);
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        showError(response.message || 'Failed to change password');
+      }
+    } catch (error: any) {
+      console.log('Change password error:', error);
+      showError(error.message || 'Failed to change password. Please try again.');
     }
   };
 
@@ -1316,22 +1465,22 @@ export default function AdminDashboard() {
         ) : currentView === 'managers' ? (
           /* Managers Section - Only for Admin with view permission */
           user?.type === 'admin' && hasViewPermission() && (
-            <ManagersSection colors={colors} onManagerClick={handleManagerClick} />
+            <ManagersSection colors={colors} onManagerClick={handleManagerClick} isActive={currentView === 'managers'} />
           )
         ) : currentView === 'investors' ? (
           /* Investors Section - Only for Admin with view permission */
           user?.type === 'admin' && hasViewPermission() && (
-            <InvestorsSection colors={colors} />
+            <InvestorsSection colors={colors} isActive={currentView === 'investors'} />
           )
         ) : currentView === 'admins' ? (
           /* Admins Section - Only for main admin */
           user?.type === 'admin' && isMainAdmin() && (
-            <AdminsSection colors={colors} user={user} />
+            <AdminsSection colors={colors} user={user} isActive={currentView === 'admins'} />
           )
         ) : (
           /* Loans Section - Only for Admin with view permission */
           user?.type === 'admin' && hasViewPermission() && (
-            <LoansSection colors={colors} />
+            <LoansSection colors={colors} isActive={currentView === 'loans'} />
           )
         )}
       </ScrollView>
@@ -1347,76 +1496,27 @@ export default function AdminDashboard() {
       )}
 
       {/* Profile Modal */}
-      {showProfileModal && (
-        <Animated.View style={[
-          styles.modalOverlay,
-          {
-            opacity: modalOpacity,
-            transform: [{ translateY: modalSlideY }],
-          }
-        ]}>
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowProfileModal(false)}
+        statusBarTranslucent
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowProfileModal(false)}
+        >
           <TouchableOpacity 
-            style={styles.modalBackdrop}
+            style={[styles.profileModal, { backgroundColor: colors.cardBackground }]}
             activeOpacity={1}
-            onPress={() => {
-              setShowProfileModal(false);
-              
-              modalOpacity.setValue(0);
-            }}
-          />
-          <PanGestureHandler
-            onGestureEvent={handleDragMove}
-            onHandlerStateChange={({ nativeEvent }) => {
-              if (nativeEvent.state === State.BEGAN) {
-                handleDragStart();
-              } else if (nativeEvent.state === State.END) {
-                handleDragEnd({ nativeEvent });
-              }
-            }}
+            onPress={(e) => e.stopPropagation()}
           >
-            <Animated.View style={[
-              styles.profileModal, 
-              { 
-                backgroundColor: isDragging ? 'rgba(255, 255, 255, 0.95)' : colors.cardBackground,
-                paddingBottom: Math.max(insets.bottom, 10) + 10, 
-                transform: [
-                  { translateY: dragTranslateY }
-                ],
-                opacity: dragOpacity,
-                elevation: isDragging ? 25 : 20,
-                shadowOpacity: isDragging ? 0.4 : 0.25,
-              }
-            ]}>
-              {/* Drag Handle */}
-              <TouchableOpacity 
-                style={styles.dragHandleContainer}
-                onPress={handleDoubleTap}
-                activeOpacity={1}
-              >
-                <View style={[
-                  styles.dragHandle, 
-                  { 
-                    backgroundColor: isDragging ? 
-                      (dragValue > 150 ? colors.danger : colors.primary) : 
-                      colors.lightText,
-                    opacity: isDragging ? 1 : 0.3,
-                    transform: [{ scaleY: isDragging ? 1.2 : 1 }],
-                  }
-                ]} />
-                {isDragging && (
-                  <Animated.Text 
-                    style={[
-                      styles.dragHint, 
-                      { 
-                        color: dragValue > 150 ? colors.danger : colors.primary,
-                        opacity: dragOpacity,
-                      }
-                    ]}
-                  >
-                    {dragValue > 150 ? 'Release to close' : 'Drag down to close'}
-                  </Animated.Text>
-                )}
-              </TouchableOpacity>
+            {/* Drag Handle */}
+            <View style={styles.dragHandleContainer}>
+              <View style={[styles.dragHandle, { backgroundColor: colors.lightText }]} />
+            </View>
             
             {/* Profile Header */}
             <View style={styles.profileHeader}>
@@ -1448,6 +1548,19 @@ export default function AdminDashboard() {
             {/* Action Buttons */}
             <View style={styles.profileActions}>
               <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setShowProfileModal(false);
+                  setTimeout(() => {
+                    setShowChangePasswordModal(true);
+                  }, 300);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="lock-closed" size={20} color="#FFFFFF" />
+                <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Change Password</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
                 style={[styles.actionButton, { backgroundColor: colors.danger }]}
                 onPress={handleLogout}
                 activeOpacity={0.7}
@@ -1456,84 +1569,35 @@ export default function AdminDashboard() {
                 <Text style={styles.logoutButtonText}>Logout</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
-          </PanGestureHandler>
-        </Animated.View>
-      )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Create Installment Modal - Only for admin users */}
-      {showCreateModal && user?.type === 'admin' && (
-        <Animated.View style={[
-          styles.modalOverlay,
-          {
-            opacity: createModalOpacity,
-            transform: [{ translateY: createModalSlideY }],
-          }
-        ]}>
+      <Modal
+        visible={showCreateModal && user?.type === 'admin'}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateModal(false)}
+        statusBarTranslucent
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCreateModal(false)}
+        >
           <TouchableOpacity 
-            style={styles.modalBackdrop}
+            style={[styles.createModal, { backgroundColor: colors.cardBackground }]}
             activeOpacity={1}
-            onPress={() => {
-              setShowCreateModal(false);
-              
-              createModalOpacity.setValue(0);
-            }}
-          />
-          <PanGestureHandler
-            onGestureEvent={handleCreateDragMove}
-            onHandlerStateChange={({ nativeEvent }) => {
-              if (nativeEvent.state === State.BEGAN) {
-                handleCreateDragStart();
-              } else if (nativeEvent.state === State.END) {
-                handleCreateDragEnd({ nativeEvent });
-              }
-            }}
+            onPress={(e) => e.stopPropagation()}
           >
-            <Animated.View style={[
-              styles.createModal, 
-              { 
-                backgroundColor: isCreateDragging ? 'rgba(255, 255, 255, 0.95)' : colors.cardBackground,
-                paddingBottom: Math.max(insets.bottom, 10) + 10, 
-                transform: [
-                  { translateY: createDragTranslateY }
-                ],
-                opacity: createDragOpacity,
-                elevation: isCreateDragging ? 25 : 20,
-                shadowOpacity: isCreateDragging ? 0.4 : 0.25,
-              }
-            ]}>
-              {/* Drag Handle */}
-              <TouchableOpacity 
-                style={styles.dragHandleContainer}
-                onPress={handleCreateDoubleTap}
-                activeOpacity={1}
-              >
-                <View style={[
-                  styles.dragHandle, 
-                  { 
-                    backgroundColor: isCreateDragging ? 
-                      (createDragValue > 150 ? colors.danger : colors.primary) : 
-                      colors.lightText,
-                    opacity: isCreateDragging ? 1 : 0.3,
-                    transform: [{ scaleY: isCreateDragging ? 1.2 : 1 }],
-                  }
-                ]} />
-                {isCreateDragging && (
-                  <Animated.Text 
-                    style={[
-                      styles.dragHint, 
-                      { 
-                        color: createDragValue > 150 ? colors.danger : colors.primary,
-                        opacity: createDragOpacity,
-                      }
-                    ]}
-                  >
-                    {createDragValue > 150 ? 'Release to close' : 'Drag down to close'}
-                  </Animated.Text>
-                )}
-              </TouchableOpacity>
-              
-              <View style={styles.createModalHeader}>
+            {/* Drag Handle */}
+            <View style={styles.dragHandleContainer}>
+              <View style={[styles.dragHandle, { backgroundColor: colors.lightText }]} />
+            </View>
+            
+            {/* Header */}
+            <View style={styles.createModalHeader}>
                 <Text style={[styles.createModalTitle, { color: colors.text }]}>
                   Create Installment
                 </Text>
@@ -1559,10 +1623,151 @@ export default function AdminDashboard() {
                   <Text style={styles.createButtonText}>Create New Installment</Text>
                 </TouchableOpacity>
               </ScrollView>
-            </Animated.View>
-          </PanGestureHandler>
-        </Animated.View>
-      )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal
+        visible={showChangePasswordModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowChangePasswordModal(false)}
+        statusBarTranslucent
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowChangePasswordModal(false)}
+        >
+          <TouchableOpacity 
+            style={[styles.createModal, { backgroundColor: colors.cardBackground }]}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Drag Handle */}
+            <View style={styles.dragHandleContainer}>
+              <View style={[styles.dragHandle, { backgroundColor: colors.lightText }]} />
+            </View>
+            
+            {/* Header */}
+            <View style={styles.createModalHeader}>
+                <Text style={[styles.createModalTitle, { color: colors.text }]}>
+                  Change Password
+                </Text>
+              </View>
+              
+              <ScrollView style={styles.createModalContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Current Password
+                  </Text>
+                  <View style={[styles.passwordInputContainer, { 
+                    backgroundColor: colors.inputBackground,
+                    borderColor: colors.border,
+                  }]}>
+                    <TextInput
+                      style={[styles.passwordInput, { color: colors.text }]}
+                      value={passwordData.currentPassword}
+                      onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
+                      placeholder="Enter current password"
+                      placeholderTextColor={colors.lightText}
+                      secureTextEntry={!showCurrentPassword}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                      style={styles.eyeIcon}
+                    >
+                      <Ionicons 
+                        name={showCurrentPassword ? "eye-off" : "eye"} 
+                        size={20} 
+                        color={colors.lightText} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    New Password
+                  </Text>
+                  <View style={[styles.passwordInputContainer, { 
+                    backgroundColor: colors.inputBackground,
+                    borderColor: colors.border,
+                  }]}>
+                    <TextInput
+                      style={[styles.passwordInput, { color: colors.text }]}
+                      value={passwordData.newPassword}
+                      onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
+                      placeholder="Enter new password"
+                      placeholderTextColor={colors.lightText}
+                      secureTextEntry={!showNewPassword}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowNewPassword(!showNewPassword)}
+                      style={styles.eyeIcon}
+                    >
+                      <Ionicons 
+                        name={showNewPassword ? "eye-off" : "eye"} 
+                        size={20} 
+                        color={colors.lightText} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Confirm New Password
+                  </Text>
+                  <View style={[styles.passwordInputContainer, { 
+                    backgroundColor: colors.inputBackground,
+                    borderColor: colors.border,
+                  }]}>
+                    <TextInput
+                      style={[styles.passwordInput, { color: colors.text }]}
+                      value={passwordData.confirmPassword}
+                      onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
+                      placeholder="Confirm new password"
+                      placeholderTextColor={colors.lightText}
+                      secureTextEntry={!showConfirmPassword}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={styles.eyeIcon}
+                    >
+                      <Ionicons 
+                        name={showConfirmPassword ? "eye-off" : "eye"} 
+                        size={20} 
+                        color={colors.lightText} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, { backgroundColor: colors.border }]}
+                    onPress={() => setShowChangePasswordModal(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.submitButton, { backgroundColor: colors.primary }]}
+                    onPress={handleChangePassword}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Change Password</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Confirmation Modal */}
       <ConfirmationModal
@@ -2240,6 +2445,7 @@ const styles = StyleSheet.create({
   },
   profileActions: {
     paddingHorizontal: 24,
+    paddingBottom: 24,
     gap: 12,
   },
   actionButton: {
@@ -2394,6 +2600,63 @@ const styles = StyleSheet.create({
   filterChipText: {
     color: '#FFFFFF',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 48,
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  eyeIcon: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingTop: 20,
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  submitButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    minWidth: 140,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  buttonText: {
+    fontSize: 16,
     fontWeight: '600',
   },
 });

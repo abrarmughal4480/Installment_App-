@@ -534,40 +534,46 @@ export default class PDFGenerator {
         // Calculate totals directly from backend installments array
         let sumOfInstallmentAmounts = 0;
         let sumOfPaidAmounts = 0;
-        let sumOfRemainingAmounts = 0;
         
         if (Array.isArray(installment.installments) && installment.installments.length > 0) {
           installment.installments.forEach((inst: any) => {
-            // Use backend values directly
+            // Use backend values directly - always use base amount for consistency
             const baseAmount = inst.amount || 0;
-            // Use actualPaidAmount as installment amount if available (for paid installments)
-            const installmentAmount = (inst.status === 'paid' && inst.actualPaidAmount) ? inst.actualPaidAmount : baseAmount;
-            sumOfInstallmentAmounts += installmentAmount;
+            sumOfInstallmentAmounts += baseAmount;
             
             // Use actual backend values for paid amounts
-            const paidAmt = inst.status === 'paid' ? (inst.actualPaidAmount ?? 0) : 0;
+            const paidAmt = inst.status === 'paid' ? (inst.actualPaidAmount ?? baseAmount) : 0;
             sumOfPaidAmounts += paidAmt;
-            
-            // Calculate remaining from backend data
-            const remainingAmt = installmentAmount - paidAmt;
-            sumOfRemainingAmounts += Math.max(0, remainingAmt);
           });
         }
         
         // Total paid includes advance from backend
         const totalPaidAmount = advanceAmount + sumOfPaidAmounts;
         
-        // Remaining is total minus what's paid (from backend calculation)
-        const remaining = totalAmount - totalPaidAmount;
+        // Remaining is total minus what's paid - SINGLE SOURCE OF TRUTH
+        // This will be used in both Balance Overview and Table
+        const remaining = Math.max(0, totalAmount - totalPaidAmount);
+        
+        // For table: sum of remaining amounts per installment (excluding advance)
+        // remaining amount per unpaid installment = base amount (paid installments have 0 remaining)
+        let sumOfRemainingAmounts = 0;
+        if (Array.isArray(installment.installments) && installment.installments.length > 0) {
+          installment.installments.forEach((inst: any) => {
+            const baseAmount = inst.amount || 0;
+            if (inst.status !== 'paid') {
+              sumOfRemainingAmounts += baseAmount;
+            }
+          });
+        }
         
         return { 
           totalAmount,           // From backend
           advanceAmount,        // From backend
           paidAmount: totalPaidAmount,  // advance + sum of paid installments
-          remaining,            // totalAmount - totalPaidAmount
-          sumOfInstallmentAmounts,  // Sum of all installment amounts from backend
+          remaining,            // totalAmount - totalPaidAmount (SAME VALUE FOR BOTH SECTIONS)
+          sumOfInstallmentAmounts,  // Sum of all installment base amounts
           sumOfPaidAmounts,     // Sum of actualPaidAmount from backend
-          sumOfRemainingAmounts // Sum of remaining amounts
+          sumOfRemainingAmounts // Sum of remaining amounts for unpaid installments
         };
       };
 
@@ -584,11 +590,12 @@ export default class PDFGenerator {
                 const due = inst.dueDate ? new Date(inst.dueDate) : null;
                 const isPaid = inst.status === 'paid';
                 const baseAmount = inst.amount ?? 0;
-                // Show actualPaidAmount in installment amount column if available (for paid installments)
-                const installmentAmount = (isPaid && inst.actualPaidAmount) ? inst.actualPaidAmount : baseAmount;
-                // Use actualPaidAmount from backend for paid column, or 0 if not paid
-                const paidAmount = isPaid ? (inst.actualPaidAmount ?? 0) : 0;
-                const remainingAmount = Math.max(0, installmentAmount - paidAmount);
+                // Always show base amount in installment column for consistency
+                const installmentAmount = baseAmount;
+                // Use actualPaidAmount from backend for paid column
+                const paidAmount = isPaid ? (inst.actualPaidAmount ?? baseAmount) : 0;
+                // Remaining is 0 for paid installments, base amount for unpaid
+                const remainingAmount = isPaid ? 0 : baseAmount;
                 let statusLabel = 'Pending';
                 let statusClass = 'status-pending';
                 if (isPaid) {
@@ -760,7 +767,7 @@ export default class PDFGenerator {
                         <td colspan="2">Totals</td>
                         <td>${this.formatCurrency(totals.sumOfInstallmentAmounts)}</td>
                         <td>${this.formatCurrency(totals.sumOfPaidAmounts)}</td>
-                        <td>${this.formatCurrency(totals.sumOfRemainingAmounts)}</td>
+                        <td>${this.formatCurrency(totals.remaining)}</td>
                         <td></td>
                       </tr>
                 </tbody>

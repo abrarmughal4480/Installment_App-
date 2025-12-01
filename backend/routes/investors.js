@@ -8,6 +8,7 @@ import {
   getInvestorDashboard,
   updateMonthlyProfit,
   getInvestorProfitHistory,
+  updateInvestorProfitHistory,
   distributeProfits
 } from '../controllers/investorController.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -29,6 +30,9 @@ router.get('/dashboard', getInvestorDashboard);
 
 // GET /api/investors/profit-history - Get investor profit history (investors can access their own history)
 router.get('/profit-history', getInvestorProfitHistory);
+
+// PUT /api/investors/profit-history - Update investor profit history
+router.put('/profit-history', updateInvestorProfitHistory);
 
 // POST /api/investors/update-profit - Update monthly profit (main admin only)
 router.post('/update-profit', requireMainAdmin, updateMonthlyProfit);

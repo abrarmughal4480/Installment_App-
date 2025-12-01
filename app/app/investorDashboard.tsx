@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, StatusBar, ScrollView, Animated } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, StatusBar, ScrollView, Animated, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -247,7 +247,13 @@ export default function InvestorDashboardPage() {
       </ScrollView>
 
       {/* Profile Modal */}
-      {showProfileModal && (
+      <Modal
+        visible={showProfileModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowProfileModal(false)}
+        statusBarTranslucent
+      >
         <Animated.View style={[
           styles.modalOverlay,
           {
@@ -348,7 +354,7 @@ export default function InvestorDashboardPage() {
             </Animated.View>
           </PanGestureHandler>
         </Animated.View>
-      )}
+      </Modal>
 
       </View>
     </GestureHandlerRootView>
@@ -408,12 +414,8 @@ const styles = StyleSheet.create({
 
   // Profile Modal Styles
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
     zIndex: 1000,
   },

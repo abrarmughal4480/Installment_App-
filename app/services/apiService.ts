@@ -102,11 +102,11 @@ class ApiService {
     });
     
     const config: RequestInit = {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers || {}),
       },
-      ...options,
     };
 
     try {
@@ -203,13 +203,15 @@ class ApiService {
     });
   }
 
-  async changePassword(token: string, passwords: {
+  async changePassword(passwords: {
     currentPassword: string;
     newPassword: string;
   }): Promise<{ success: boolean; message: string }> {
+    const token = await TokenService.getToken();
     return this.request('/api/auth/change-password', {
-      method: 'PUT',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(passwords),
@@ -708,6 +710,25 @@ class ApiService {
     });
   }
 
+  async updateInvestorProfitHistory(investorId: string, profitHistory: Array<{
+    month: string;
+    profit: number;
+  }>): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors/profit-history', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ investorId, profitHistory }),
+    });
+  }
+
   // Loan methods
   async getLoans(): Promise<{
     success: boolean;
@@ -795,6 +816,26 @@ class ApiService {
   }> {
     const token = await TokenService.getToken();
     return this.request(`/api/loans/${loanId}/payment`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addAdditionalAmount(loanId: string, data: {
+    additionalAmount: number;
+    reason?: string;
+    addedDate?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+  }> {
+    const token = await TokenService.getToken();
+    return this.request(`/api/loans/${loanId}/add-amount`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token || ''}`,

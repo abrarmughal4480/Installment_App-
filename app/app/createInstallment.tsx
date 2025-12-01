@@ -734,6 +734,7 @@ export default function CreateInstallment() {
               transparent
               animationType="fade"
               onRequestClose={handleManagerModalClose}
+              statusBarTranslucent
             >
               <Animated.View style={[styles.modalOverlay, { opacity: modalOpacity }]}>
                 <Animated.View style={[

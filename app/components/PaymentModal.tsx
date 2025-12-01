@@ -214,6 +214,7 @@ export default function PaymentModal({
       animationType="slide"
       transparent={true}
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]}>

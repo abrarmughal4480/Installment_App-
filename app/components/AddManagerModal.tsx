@@ -104,6 +104,7 @@ export default function AddManagerModal({
       transparent
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]}>

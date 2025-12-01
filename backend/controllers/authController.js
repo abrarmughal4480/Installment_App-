@@ -591,8 +591,34 @@ export const logout = async (req, res) => {
 // Change Password
 export const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    console.log('🔐 Change password request received:', {
+      body: req.body,
+      bodyType: typeof req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : 'no body',
+      headers: req.headers['content-type'],
+      method: req.method,
+      userId: req.user?.userId
+    });
+
+    // Check if body exists
+    if (!req.body) {
+      console.log('❌ Request body is undefined');
+      return res.status(400).json({
+        success: false,
+        message: 'Request body is missing. Please ensure Content-Type is application/json.'
+      });
+    }
+
+    // Safe destructuring with defaults
+    const currentPassword = req.body?.currentPassword;
+    const newPassword = req.body?.newPassword;
     const userId = req.user?.userId;
+
+    console.log('🔐 Parsed values:', {
+      userId,
+      hasCurrentPassword: !!currentPassword,
+      hasNewPassword: !!newPassword
+    });
 
     // Validation
     if (!currentPassword || !newPassword) {
@@ -627,15 +653,26 @@ export const changePassword = async (req, res) => {
     // Find user (all types now use User model)
     const user = await User.findById(userId);
     if (!user) {
+      console.log('❌ User not found:', userId);
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
+    // Check if user has password field
+    if (!user.password) {
+      console.log('❌ User password field not found');
+      return res.status(400).json({
+        success: false,
+        message: 'User password not found. Please contact administrator.'
+      });
+    }
+
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
+      console.log('❌ Current password is incorrect');
       return res.status(400).json({
         success: false,
         message: 'Current password is incorrect'
@@ -660,15 +697,19 @@ export const changePassword = async (req, res) => {
     user.updatedAt = new Date();
     await user.save();
 
+    console.log('✅ Password changed successfully for user:', userId);
+
     res.status(200).json({
       success: true,
       message: 'Password changed successfully'
     });
 
   } catch (error) {
+    console.error('❌ Change password error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error. Please try again later.'
+      message: 'Internal server error. Please try again later.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

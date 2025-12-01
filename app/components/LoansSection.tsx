@@ -18,6 +18,7 @@ import { apiService } from '../services/apiService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
 import PDFGenerator from './PDFGenerator';
+import LoanDetailsModal from './LoanDetailsModal';
 
 interface Loan {
   _id: string;
@@ -41,13 +42,19 @@ interface Loan {
     paymentMethod: string;
     notes?: string;
   }>;
+  additionalAmountHistory?: Array<{
+    addedDate: string;
+    additionalAmount: number;
+    reason?: string;
+  }>;
 }
 
 interface LoansSectionProps {
   colors: any;
+  isActive?: boolean;
 }
 
-export default function LoansSection({ colors }: LoansSectionProps) {
+export default function LoansSection({ colors, isActive = true }: LoansSectionProps) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +77,9 @@ export default function LoansSection({ colors }: LoansSectionProps) {
   
   // Loan details modal state
   const [showLoanDetailsModal, setShowLoanDetailsModal] = useState(false);
+  
+  // Add additional amount modal state
+  const [showAddAmountModal, setShowAddAmountModal] = useState(false);
   
   // Form input states
   const [formData, setFormData] = useState({
@@ -103,6 +113,16 @@ export default function LoansSection({ colors }: LoansSectionProps) {
     notes: '',
   });
   
+  // Add amount form data
+  const [addAmountFormData, setAddAmountFormData] = useState({
+    additionalAmount: '',
+    reason: '',
+    addedDate: new Date(),
+  });
+  
+  // Date picker state for additional amount
+  const [showAddAmountDatePicker, setShowAddAmountDatePicker] = useState(false);
+  
   // Confirmation modal state
   const [confirmationModal, setConfirmationModal] = useState({
     visible: false,
@@ -119,8 +139,11 @@ export default function LoansSection({ colors }: LoansSectionProps) {
   const shimmerOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    loadLoans();
-  }, []);
+    // Only load loans when section is active
+    if (isActive) {
+      loadLoans();
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (isLoading) {
@@ -369,6 +392,42 @@ export default function LoansSection({ colors }: LoansSectionProps) {
     } catch (error) {
       console.error('Add payment error:', error);
       showError('Failed to add payment. Please try again.');
+    }
+  };
+
+  const handleAddAdditionalAmount = async () => {
+    if (!addAmountFormData.additionalAmount.trim()) {
+      showError('Please enter additional amount');
+      return;
+    }
+
+    if (!selectedLoan) {
+      showError('No loan selected');
+      return;
+    }
+
+    try {
+      const response = await apiService.addAdditionalAmount(selectedLoan._id, {
+        additionalAmount: parseFloat(addAmountFormData.additionalAmount),
+        reason: addAmountFormData.reason.trim(),
+        addedDate: addAmountFormData.addedDate.toISOString(),
+      });
+
+      if (response.success) {
+        showSuccess('Additional amount added successfully');
+        setShowAddAmountModal(false);
+        setAddAmountFormData({
+          additionalAmount: '',
+          reason: '',
+          addedDate: new Date(),
+        });
+        loadLoans(false);
+      } else {
+        showError(response.message || 'Failed to add additional amount');
+      }
+    } catch (error) {
+      console.error('Add additional amount error:', error);
+      showError('Failed to add additional amount. Please try again.');
     }
   };
 
@@ -745,6 +804,19 @@ export default function LoansSection({ colors }: LoansSectionProps) {
                 >
                   <Ionicons name="card" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
+                {/* Add Amount button */}
+                <TouchableOpacity
+                  style={[styles.cardActionButton, { backgroundColor: colors.primary }]}
+                  onPress={(e) => {
+                    e.stopPropagation(); 
+                    setSelectedLoan(loan);
+                    setAddAmountFormData({ additionalAmount: '', reason: '', addedDate: new Date() });
+                    setShowAddAmountModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
                 {/* Delete button */}
                 <TouchableOpacity
                   style={[styles.cardActionButton, { backgroundColor: colors.danger }]}
@@ -824,170 +896,13 @@ export default function LoansSection({ colors }: LoansSectionProps) {
       />
 
       {/* Loan Details Modal */}
-      <Modal
+      <LoanDetailsModal
         visible={showLoanDetailsModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLoanDetailsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
-            {/* Header */}
-            <View style={[styles.modalHeader, { backgroundColor: colors.primary + '10' }]}>
-              <View style={styles.headerContent}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="document-text" size={20} color="#FFFFFF" />
-                </View>
-                <View style={styles.headerText}>
-                  <Text style={[styles.modalTitle, { color: colors.text }]}>
-                    Loan Details
-                  </Text>
-                  <Text style={[styles.modalSubtitle, { color: colors.lightText }]}>
-                    {selectedLoan?.investorName} - Loan #{selectedLoan?.loanId}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowLoanDetailsModal(false)}
-                style={[styles.closeButton, { backgroundColor: colors.border }]}
-              >
-                <Ionicons name="close" size={18} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Content */}
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {/* Loan Information */}
-              <View style={styles.detailsSection}>
-                <Text style={[styles.detailsSectionTitle, { color: colors.text }]}>Loan Information</Text>
-                <View style={styles.loanInfoCard}>
-                  <View style={styles.loanInfoRow}>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Loan Amount</Text>
-                      <Text style={[styles.loanInfoValue, { color: colors.primary }]}>
-                        {formatCurrency(selectedLoan?.loanAmount || 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Interest Rate</Text>
-                      <Text style={[styles.loanInfoValue, { color: colors.text }]}>
-                        {selectedLoan?.interestRate}%
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.loanInfoRow}>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Duration</Text>
-                      <Text style={[styles.loanInfoValue, { color: colors.text }]}>
-                        {selectedLoan?.duration} months
-                      </Text>
-                    </View>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Monthly Payment</Text>
-                      <Text style={[styles.loanInfoValue, { color: colors.success }]}>
-                        {formatCurrency(selectedLoan?.monthlyPayment || 0)}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.loanInfoRow}>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Total Amount</Text>
-                      <Text style={[styles.loanInfoValue, { color: colors.text }]}>
-                        {formatCurrency(selectedLoan?.totalAmount || 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.loanInfoItem}>
-                      <Text style={[styles.loanInfoLabel, { color: colors.lightText }]}>Status</Text>
-                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedLoan?.status || 'active') }]}>
-                        <Text style={styles.modalStatusText}>
-                          {(selectedLoan?.status || 'active').charAt(0).toUpperCase() + (selectedLoan?.status || 'active').slice(1)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Payment Summary */}
-              <View style={styles.detailsSection}>
-                <Text style={[styles.detailsSectionTitle, { color: colors.text }]}>Payment Summary</Text>
-                <View style={styles.summaryCard}>
-                  <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: colors.lightText }]}>Total Paid</Text>
-                    <Text style={[styles.summaryValue, { color: colors.success }]}>
-                      {formatCurrency(selectedLoan?.paidAmount || 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: colors.lightText }]}>Remaining</Text>
-                    <Text style={[styles.summaryValue, { color: colors.danger }]}>
-                      {formatCurrency(selectedLoan?.remainingAmount || 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: colors.lightText }]}>Progress</Text>
-                    <Text style={[styles.summaryValue, { color: colors.primary }]}>
-                      {selectedLoan?.totalAmount ? Math.round(((selectedLoan?.paidAmount || 0) / selectedLoan?.totalAmount) * 100) : 0}%
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Payment History */}
-              <View style={styles.detailsSection}>
-                <Text style={[styles.detailsSectionTitle, { color: colors.text }]}>Payment History</Text>
-                {selectedLoan?.paymentHistory && selectedLoan.paymentHistory.length > 0 ? (
-                  <View style={styles.paymentHistory}>
-                    {selectedLoan.paymentHistory.map((payment: any, index: number) => (
-                      <View key={index} style={[styles.paymentItem, { backgroundColor: colors.background }]}>
-                        <View style={styles.paymentHeader}>
-                          <Text style={[styles.paymentDate, { color: colors.text }]}>
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </Text>
-                          <Text style={[styles.paymentAmount, { color: colors.success }]}>
-                            {formatCurrency(payment.amount)}
-                          </Text>
-                        </View>
-                        <View style={styles.paymentDetails}>
-                          <Text style={[styles.paymentMethod, { color: colors.lightText }]}>
-                            Method: {payment.paymentMethod}
-                          </Text>
-                          {payment.notes && (
-                            <Text style={[styles.paymentNotes, { color: colors.lightText }]}>
-                              Notes: {payment.notes}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={[styles.emptyPaymentHistory, { backgroundColor: colors.background }]}>
-                    <Ionicons name="receipt-outline" size={32} color={colors.lightText} />
-                    <Text style={[styles.emptyPaymentText, { color: colors.lightText }]}>
-                      No payment history available
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Notes */}
-              {selectedLoan?.notes && (
-                <View style={styles.detailsSection}>
-                  <Text style={[styles.detailsSectionTitle, { color: colors.text }]}>Notes</Text>
-                  <View style={[styles.notesCard, { backgroundColor: colors.background }]}>
-                    <Text style={[styles.notesText, { color: colors.text }]}>
-                      {selectedLoan.notes}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowLoanDetailsModal(false)}
+        loan={selectedLoan}
+        colors={colors}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Add Loan Modal */}
       <Modal
@@ -995,6 +910,7 @@ export default function LoansSection({ colors }: LoansSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowAddLoanModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -1182,6 +1098,7 @@ export default function LoansSection({ colors }: LoansSectionProps) {
         transparent
         animationType="fade"
         onRequestClose={() => setShowPaymentModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -1305,12 +1222,145 @@ export default function LoansSection({ colors }: LoansSectionProps) {
         </View>
       </Modal>
       
+      {/* Add Additional Amount Modal */}
+      <Modal
+        visible={showAddAmountModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddAmountModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
+            {/* Header */}
+            <View style={[styles.modalHeader, { backgroundColor: colors.primary + '10' }]}>
+              <View style={styles.headerContent}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    Add Amount
+                  </Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.lightText }]}>
+                    {selectedLoan?.investorName} - Current: {formatCurrency(selectedLoan?.loanAmount || 0)}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowAddAmountModal(false)}
+                style={[styles.closeButton, { backgroundColor: colors.border }]}
+              >
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Content */}
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.inputContainer}>
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Additional Amount (Rs.) *
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      color: colors.text 
+                    }]}
+                    value={addAmountFormData.additionalAmount}
+                    onChangeText={(text) => setAddAmountFormData(prev => ({ ...prev, additionalAmount: text }))}
+                    placeholder="Enter additional amount"
+                    placeholderTextColor={colors.lightText}
+                    keyboardType="numeric"
+                  />
+                </View>
+                
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Added Date *
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.datePickerButton, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                    }]}
+                    onPress={() => setShowAddAmountDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.datePickerText, { color: colors.text }]}>
+                      {addAmountFormData.addedDate.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                  {showAddAmountDatePicker && (
+                    <DateTimePicker
+                      value={addAmountFormData.addedDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowAddAmountDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setAddAmountFormData(prev => ({ ...prev, addedDate: selectedDate }));
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+                
+                <View style={styles.inputField}>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Reason (Optional)
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea, { 
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.border,
+                      color: colors.text 
+                    }]}
+                    value={addAmountFormData.reason}
+                    onChangeText={(text) => setAddAmountFormData(prev => ({ ...prev, reason: text }))}
+                    placeholder="Why additional amount? e.g., Late fees, Interest update"
+                    placeholderTextColor={colors.lightText}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+            
+            {/* Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowAddAmountModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: colors.primary }]}
+                onPress={handleAddAdditionalAmount}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Amount</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       {/* Edit Loan Modal */}
       <Modal
         visible={showEditModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowEditModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.addModalContainer, { backgroundColor: colors.cardBackground }]}>
@@ -1948,6 +1998,7 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
+    height: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -2093,7 +2144,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  // Loan Details Modal Styles
   detailsSection: {
     marginBottom: 24,
   },
@@ -2131,56 +2181,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  summaryCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  paymentTimeline: {
+    marginVertical: 8,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#E5E7EB',
   },
-  summaryRow: {
+  timelineItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  summaryLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
+  timelineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+    marginLeft: -15,
   },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  paymentHistory: {
-    gap: 12,
-  },
-  paymentItem: {
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  paymentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  paymentDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-  },
-  paymentAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+  timelineText: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   paymentDetails: {
     gap: 4,
+    marginTop: 8,
   },
   paymentMethod: {
     fontSize: 12,
@@ -2192,6 +2218,52 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.2,
     fontStyle: 'italic',
+  },
+  additionalAmountHistory: {
+    gap: 12,
+  },
+  additionalAmountItem: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderColor: '#E2E8F0',
+  },
+  additionalAmountHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    gap: 12,
+  },
+  additionalAmountHeaderLeft: {
+    flex: 1,
+  },
+  additionalAmountLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  additionalAmountDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  additionalAmountValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  additionalAmountDetails: {
+    gap: 4,
+    marginTop: 8,
+  },
+  additionalAmountReason: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   emptyPaymentHistory: {
     alignItems: 'center',

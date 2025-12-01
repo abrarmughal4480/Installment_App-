@@ -76,6 +76,7 @@ export default function ConfirmationModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View style={styles.overlay}>
         <Animated.View
