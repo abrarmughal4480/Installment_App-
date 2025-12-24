@@ -25,6 +25,11 @@ interface Loan {
     paymentMethod: string;
     notes?: string;
   }>;
+  additionalAmountHistory?: Array<{
+    addedDate: string;
+    additionalAmount: number;
+    reason?: string;
+  }>;
 }
 
 interface Investor {
@@ -35,6 +40,7 @@ interface Investor {
   type?: string;
   investmentAmount?: number;
   monthlyProfit?: number;
+  totalProfit?: number;
   profitHistory?: Array<{
     month: string;
     profit: number;
@@ -104,24 +110,45 @@ export default class PDFGenerator {
       this.showInfo('Generating PDF...');
 
       const generateHTML = () => {
-        // Generate payment history rows
-        const paymentRows = loan.paymentHistory && loan.paymentHistory.length > 0 
-          ? loan.paymentHistory.map((payment: any, index: number) => {
-              const paymentDate = new Date(payment.paymentDate);
+
+        // Generate merged payment history rows (payment + additional amount)
+        const mergedHistory = [
+          ...(loan.additionalAmountHistory || []).map((item: any) => ({
+            ...item,
+            type: 'additional',
+            date: item.addedDate || item.createdAt,
+          })),
+          ...(loan.paymentHistory || []).map((item: any) => ({
+            ...item,
+            type: 'payment',
+            date: item.paymentDate,
+          })),
+        ]
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        const paymentHistoryRows = mergedHistory
+          .map((item: any, index: number) => {
+            if (item.type === 'additional') {
               return `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${paymentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                  <td>${this.formatCurrency(loan.monthlyPayment)}</td>
-                  <td>${this.formatCurrency(payment.amount)}</td>
-                  <td><span class="status-paid">Paid</span></td>
+                <tr class="additional-row">
+                  <td>${new Date(item.addedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                  <td>ADDITIONAL-${String(index + 1).padStart(4, '0')}</td>
+                  <td>${this.formatCurrency(item.additionalAmount)}</td>
+                  <td>Additional Amount</td>
                 </tr>
               `;
-            }).join('')
-          : '';
-
-        // Do not synthesize schedule rows; rely only on backend history
-        const remainingRows = '';
+            } else {
+              return `
+                <tr>
+                  <td>${new Date(item.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                  <td>TXN-${String(index + 1).padStart(4, '0')}</td>
+                  <td>${this.formatCurrency(item.amount)}</td>
+                  <td>${item.paymentMethod || 'Cash'}</td>
+                </tr>
+              `;
+            }
+          })
+          .join('');
 
         return `
           <!doctype html>
@@ -157,6 +184,7 @@ export default class PDFGenerator {
               th,td{padding:10px 12px;border-bottom:1px solid #eef2f7;text-align:center;font-size:13px}
               th{background:#f8fafc;color:#0f1724;font-weight:700}
               tr.total-row td{font-weight:800;background:#fdf6e5}
+              tr.additional-row td{color:#dc2626;font-weight:600}
 
               .status-paid{color:#0f5132;background:rgba(16,81,50,0.08);padding:6px 10px;border-radius:999px;display:inline-block}
               .status-due{color:#dc2626;background:rgba(220,38,38,0.08);padding:6px 10px;border-radius:999px;display:inline-block}
@@ -229,54 +257,20 @@ export default class PDFGenerator {
                 </div>
               </div>
 
-                <div class="installment-schedule">
-                  <h3 style="margin-bottom:8px;text-align:left">Payment Schedule</h3>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Payment No.</th>
-                        <th>Due Date</th>
-                        <th>Payment Amount (PKR)</th>
-                        <th>Paid</th>
-                        <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${paymentRows}
-                      <tr class="total-row">
-                        <td colspan="2">Totals</td>
-                        <td>${this.formatCurrency(loan.totalAmount)}</td>
-                        <td>${this.formatCurrency(loan.paidAmount)}</td>
-                        <td></td>
-                      </tr>
-                </tbody>
-              </table>
-                </div>
-
-                ${loan.paymentHistory && loan.paymentHistory.length > 0 ? `
+                ${mergedHistory.length > 0 ? `
                 <div class="payment-history" style="margin-top:18px">
-                  <h3 style="margin-bottom:8px;text-align:left">Payment History</h3>
+                  <h3 style="margin-bottom:8px;text-align:left">Payment & Additional Amount History</h3>
                   <table>
                     <thead>
                       <tr>
                         <th>Date</th>
                         <th>Reference / Transaction</th>
                         <th>Amount (PKR)</th>
-                        <th>Payment Method</th>
+                        <th>Type / Payment Method</th>
                       </tr>
                     </thead>
                     <tbody>
-                      ${loan.paymentHistory.map((payment: any, index: number) => {
-                        const paymentDate = new Date(payment.paymentDate);
-                        return `
-                          <tr>
-                            <td>${paymentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                            <td>TXN-${String(index + 1).padStart(4, '0')}</td>
-                            <td>${this.formatCurrency(payment.amount)}</td>
-                            <td>${payment.paymentMethod || 'Cash'}</td>
-                          </tr>
-                        `;
-                      }).join('')}
+                      ${paymentHistoryRows}
                     </tbody>
                   </table>
                 </div>
@@ -333,6 +327,21 @@ export default class PDFGenerator {
   async generateInvestorPDF(investor: Investor) {
     try {
       this.showInfo('Generating PDF...');
+
+      // Calculate total profit from profit history
+      const calculateTotalProfit = () => {
+        if (investor.totalProfit !== undefined) {
+          return investor.totalProfit;
+        }
+        
+        if (investor.profitHistory && investor.profitHistory.length > 0) {
+          return investor.profitHistory.reduce((total: number, profit: any) => total + profit.profit, 0);
+        }
+        
+        return investor.monthlyProfit || 0;
+      };
+
+      const totalProfit = calculateTotalProfit();
 
       const generateHTML = () => {
         return `
@@ -424,7 +433,7 @@ export default class PDFGenerator {
                   <div class="card">
                     <h3>Financial Overview</h3>
                     <p><strong>Invested Amount:</strong> ${this.formatCurrency(investor.investmentAmount || 0)}<br>
-                       <strong>Total Profit Earned:</strong> ${this.formatCurrency(investor.monthlyProfit || 0)}<br>
+                       <strong>Total Profit Earned:</strong> ${this.formatCurrency(totalProfit)}<br>
                        <strong>Status:</strong> Active Investment
                     </p>
                   </div>
@@ -443,19 +452,26 @@ export default class PDFGenerator {
                     </thead>
                     <tbody>
                       ${investor.profitHistory && investor.profitHistory.length > 0 
-                        ? investor.profitHistory.map((profitRecord: any) => {
-                            const monthDate = new Date(profitRecord.month + '-01');
-                            const monthName = monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-                            const closingDate = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-                            return `
-                              <tr>
-                                <td>${monthName}</td>
-                                <td>${this.formatDate(closingDate.toISOString())}</td>
-                                <td>${this.formatCurrency(profitRecord.profit)}</td>
-                                <td><span class="status-paid">Paid</span></td>
-                              </tr>
-                            `;
-                          }).join('')
+                        ? investor.profitHistory
+                            .slice()
+                            .sort((a: any, b: any) => {
+                              const dateA = new Date(a.month + '-01');
+                              const dateB = new Date(b.month + '-01');
+                              return dateA.getTime() - dateB.getTime();
+                            })
+                            .map((profitRecord: any) => {
+                              const monthDate = new Date(profitRecord.month + '-01');
+                              const monthName = monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+                              const closingDate = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+                              return `
+                                <tr>
+                                  <td>${monthName}</td>
+                                  <td>${this.formatDate(closingDate.toISOString())}</td>
+                                  <td>${this.formatCurrency(profitRecord.profit)}</td>
+                                  <td><span class="status-paid">Paid</span></td>
+                                </tr>
+                              `;
+                            }).join('')
                         : `
                           <tr>
                             <td>${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</td>

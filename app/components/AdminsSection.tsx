@@ -9,6 +9,7 @@ import {
   Animated,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../services/apiService';
@@ -74,6 +75,9 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
   
   // Permission management loading state
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState<string | null>(null);
+  
+  // Add admin loading state
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   
   // Password visibility states
   const [showEditPassword, setShowEditPassword] = useState(false);
@@ -318,6 +322,11 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
       return;
     }
 
+    if (isAddingAdmin) {
+      return; // Prevent multiple calls
+    }
+
+    setIsAddingAdmin(true);
     try {
       const response = await apiService.addAdmin(formData.email.trim(), formData.name.trim(), formData.newPassword.trim());
       
@@ -331,6 +340,8 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
       }
     } catch (error) {
       showError('Failed to create admin. Please try again.');
+    } finally {
+      setIsAddingAdmin(false);
     }
   };
 
@@ -835,7 +846,10 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
         visible={showAddAdminModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowAddAdminModal(false)}
+        onRequestClose={() => {
+          setShowAddAdminModal(false);
+          setIsAddingAdmin(false);
+        }}
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
@@ -858,6 +872,7 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
               <TouchableOpacity
                 onPress={() => {
                   setShowAddAdminModal(false);
+                  setIsAddingAdmin(false);
                   setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.border }]}
@@ -980,6 +995,7 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
                   style={[styles.cancelButton, { backgroundColor: colors.border }]}
                   onPress={() => {
                     setShowAddAdminModal(false);
+                  setIsAddingAdmin(false);
                     setFormData({ name: '', email: '', newEmail: '', newPassword: '', confirmPassword: '', editPassword: '', editConfirmPassword: '' });
                   }}
                   activeOpacity={0.7}
@@ -987,11 +1003,25 @@ export default function AdminsSection({ colors, user, isActive = true }: AdminsS
                   <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.saveButton, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.saveButton, 
+                    { 
+                      backgroundColor: colors.primary,
+                      opacity: isAddingAdmin ? 0.5 : 1
+                    }
+                  ]}
                   onPress={handleAddAdmin}
                   activeOpacity={0.7}
+                  disabled={isAddingAdmin}
                 >
-                  <Text style={styles.saveButtonText}>Create Admin</Text>
+                  {isAddingAdmin ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={styles.saveButtonText}>Creating...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.saveButtonText}>Create Admin</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>

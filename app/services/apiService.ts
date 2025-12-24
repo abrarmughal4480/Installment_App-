@@ -710,6 +710,40 @@ class ApiService {
     });
   }
 
+  async saveCurrentMonthProfit(data: {
+    investorId: string;
+    expenseAmount: number;
+    balanceEntries: Array<{
+      heading: string;
+      value: string;
+      type: 'earning' | 'deduction';
+    }>;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      investorId: string;
+      investorName: string;
+      month: string;
+      expenseAmount: number;
+      balanceEntries: Array<{
+        heading: string;
+        value: number;
+        type: 'earning' | 'deduction';
+      }>;
+    };
+  }> {
+    const token = await TokenService.getToken();
+    return this.request('/api/investors/save-current-month-profit', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
   async updateInvestorProfitHistory(investorId: string, profitHistory: Array<{
     month: string;
     profit: number;

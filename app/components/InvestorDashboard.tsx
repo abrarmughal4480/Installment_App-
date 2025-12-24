@@ -143,6 +143,31 @@ const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ colors }) => {
     return date.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' });
   };
 
+  const calculateMonthsActive = () => {
+    if (!investorData || !investorData.profitHistory || investorData.profitHistory.length === 0) {
+      return 0;
+    }
+
+    // Find the earliest profit date
+    const sortedHistory = [...investorData.profitHistory].sort((a, b) => {
+      const dateA = new Date(a.month + '-01');
+      const dateB = new Date(b.month + '-01');
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    const firstProfitDate = new Date(sortedHistory[0].month + '-01');
+    const today = new Date();
+    
+    // Calculate difference in months
+    const yearsDiff = today.getFullYear() - firstProfitDate.getFullYear();
+    const monthsDiff = today.getMonth() - firstProfitDate.getMonth();
+    
+    // Total months active (including current month if profit exists)
+    const totalMonths = yearsDiff * 12 + monthsDiff + 1; // +1 to include the first month
+    
+    return Math.max(1, totalMonths); // At least 1 month
+  };
+
   const formatPhoneNumber = (phone: string) => {
     if (!phone) return 'N/A';
     
@@ -328,7 +353,13 @@ const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ colors }) => {
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
           >
-            {investorData.profitHistory.map((item, index) => (
+            {[...investorData.profitHistory]
+              .sort((a, b) => {
+                const dateA = new Date(a.month + '-01');
+                const dateB = new Date(b.month + '-01');
+                return dateB.getTime() - dateA.getTime(); // Sort descending (newest first)
+              })
+              .map((item, index) => (
               <View key={index} style={styles.historyItem}>
                 <View style={styles.historyInfo}>
                   <Text style={[styles.historyMonth, { color: colors.text }]}>
@@ -399,7 +430,7 @@ const InvestorDashboard: React.FC<InvestorDashboardProps> = ({ colors }) => {
           </View>
           <View style={styles.performanceItem}>
             <Text style={[styles.performanceValue, { color: colors.success }]}>
-              {investorData.profitHistory.length}
+              {calculateMonthsActive()}
             </Text>
             <Text style={[styles.performanceLabel, { color: colors.lightText }]}>Months Active</Text>
           </View>

@@ -469,6 +469,9 @@ export const distributeProfits = async (req, res) => {
     const updatePromises = distribution.map(async (investorData) => {
       const investor = await User.findById(investorData._id);
       if (investor) {
+        // Round profit amount to 2 decimal places
+        const roundedProfit = Math.round((investorData.profitAmount || 0) * 100) / 100;
+        
         // Check if profit already exists for this month
         const existingProfitIndex = investor.profitHistory.findIndex(
           profit => profit.month === currentMonth
@@ -476,33 +479,33 @@ export const distributeProfits = async (req, res) => {
 
         if (existingProfitIndex >= 0) {
           // Update existing profit
-          investor.profitHistory[existingProfitIndex].profit = investorData.profitAmount;
+          investor.profitHistory[existingProfitIndex].profit = roundedProfit;
           investor.profitHistory[existingProfitIndex].updatedAt = new Date();
         } else {
           // Add new profit entry
           investor.profitHistory.push({
             month: currentMonth,
-            profit: investorData.profitAmount,
+            profit: roundedProfit,
             createdAt: new Date(),
             updatedAt: new Date()
           });
         }
 
         // Update monthly profit field
-        investor.monthlyProfit = investorData.profitAmount;
+        investor.monthlyProfit = roundedProfit;
         
         await investor.save();
         return {
           investorId: investor._id,
           investorName: investor.name,
-          profitAmount: investorData.profitAmount,
+          profitAmount: roundedProfit,
           status: 'success'
         };
       } else {
         return {
           investorId: investorData._id,
           investorName: investorData.name,
-          profitAmount: investorData.profitAmount,
+          profitAmount: Math.round((investorData.profitAmount || 0) * 100) / 100,
           status: 'failed',
           error: 'Investor not found'
         };
@@ -529,6 +532,92 @@ export const distributeProfits = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to distribute profits',
+      error: error.message
+    });
+  }
+};
+
+// Save current month profit with custom balance entries
+export const saveCurrentMonthProfit = async (req, res) => {
+  try {
+    const { investorId, expenseAmount, balanceEntries } = req.body;
+    const userType = req.user?.type;
+
+    // Only admin can save profit data
+    if (userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only admin can save profit data.'
+      });
+    }
+
+    // Validation
+    if (!investorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Investor ID is required'
+      });
+    }
+
+    const investor = await User.findById(investorId);
+    if (!investor || investor.type !== 'investor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Investor not found'
+      });
+    }
+
+    // Get current month
+    const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+
+    // Find existing profit entry for current month
+    const existingProfitIndex = investor.profitHistory.findIndex(
+      profit => profit.month === currentMonth
+    );
+
+    // Prepare balance entries data
+    const processedBalanceEntries = (balanceEntries || []).map(entry => ({
+      heading: entry.heading,
+      value: parseFloat(entry.value) || 0,
+      type: entry.type
+    }));
+
+    if (existingProfitIndex >= 0) {
+      // Update existing profit entry
+      investor.profitHistory[existingProfitIndex].expenseAmount = parseFloat(expenseAmount) || 0;
+      investor.profitHistory[existingProfitIndex].balanceEntries = processedBalanceEntries;
+      investor.profitHistory[existingProfitIndex].updatedAt = new Date();
+    } else {
+      // Create new profit entry with current month profit
+      const currentMonthProfit = investor.monthlyProfit || 0;
+      investor.profitHistory.push({
+        month: currentMonth,
+        profit: currentMonthProfit,
+        expenseAmount: parseFloat(expenseAmount) || 0,
+        balanceEntries: processedBalanceEntries,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    await investor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Current month profit data saved successfully',
+      data: {
+        investorId: investor._id,
+        investorName: investor.name,
+        month: currentMonth,
+        expenseAmount: parseFloat(expenseAmount) || 0,
+        balanceEntries: processedBalanceEntries
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save current month profit data',
       error: error.message
     });
   }

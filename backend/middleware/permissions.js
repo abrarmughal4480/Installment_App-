@@ -107,15 +107,15 @@ export const requireMainAdmin = async (req, res, next) => {
       });
     }
 
-    // Check if user is main admin
-    if (!user.isMainAdmin()) {
+    // Check if user is main admin or super admin
+    if (!user.isMainAdmin() && user.type !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Only main admin can perform this action.'
       });
     }
 
-    // Main admin has all permissions
+    // Main admin or super admin has all permissions
     req.userPermissions = {
       canViewData: true,
       canAddData: true,

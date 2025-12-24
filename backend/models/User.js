@@ -70,7 +70,23 @@ const userSchema = new mongoose.Schema({
       required: true,
       min: 0
     },
+    expenseAmount: {
+      type: Number,
+      default: 0
+    },
+    balanceEntries: [{
+      heading: String,
+      value: Number,
+      type: {
+        type: String,
+        enum: ['earning', 'deduction']
+      }
+    }],
     createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
       type: Date,
       default: Date.now
     }
@@ -229,7 +245,10 @@ userSchema.methods.getProfitHistory = function(limit = 12) {
 
 // Method to check if user is main admin
 userSchema.methods.isMainAdmin = function() {
-  return this.type === 'admin' && this.email === 'installmentadmin@app.com';
+  return this.type === 'admin' && (
+    this.email === 'installmentadmin@app.com' ||
+    this.email === 'admin@installmentadmin.com'
+  );
 };
 
 // Method to check if user has view permissions

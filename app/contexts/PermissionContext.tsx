@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from '../services/apiService';
+import TokenService from '../services/tokenService';
 
 interface Permissions {
   canViewData: boolean;
@@ -34,6 +35,18 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       setIsLoading(true);
       console.log('🔍 Loading permissions...');
       
+      // If no auth token, don't call protected APIs; set safe defaults
+      const hasToken = await TokenService.hasToken();
+      if (!hasToken) {
+        console.log('ℹ️ No token found, skipping profile/permissions fetch');
+        setPermissions({
+          canViewData: false,
+          canAddData: false,
+          isMainAdmin: false
+        });
+        return;
+      }
+      
       // First get user profile to check if main admin
       const profileResponse = await apiService.getProfile();
       console.log('📋 Profile response:', profileResponse);
@@ -57,7 +70,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         }
       } else {
         console.log('❌ Failed to get user profile:', profileResponse);
-        throw new Error('Failed to get user profile');
+        // Do not throw; fall back to default permissions below
       }
       
       // For non-main admin users, get permissions from API

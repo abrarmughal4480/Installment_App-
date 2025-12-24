@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +75,10 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // Loading states
+  const [isAddingLoan, setIsAddingLoan] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
   
   // Loan details modal state
   const [showLoanDetailsModal, setShowLoanDetailsModal] = useState(false);
@@ -333,6 +338,11 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
       return;
     }
 
+    if (isAddingLoan) {
+      return; // Prevent multiple calls
+    }
+
+    setIsAddingLoan(true);
     try {
       const response = await apiService.addLoan({
         investorName: formData.investorName.trim(),
@@ -361,6 +371,8 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
     } catch (error) {
       console.error('Add loan error:', error);
       showError('Failed to add loan. Please try again.');
+    } finally {
+      setIsAddingLoan(false);
     }
   };
 
@@ -370,6 +382,11 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
       return;
     }
 
+    if (isAddingPayment) {
+      return; // Prevent multiple calls
+    }
+
+    setIsAddingPayment(true);
     try {
       const response = await apiService.addLoanPayment(selectedLoan!._id, {
         amount: parseFloat(paymentFormData.amount),
@@ -392,6 +409,8 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
     } catch (error) {
       console.error('Add payment error:', error);
       showError('Failed to add payment. Please try again.');
+    } finally {
+      setIsAddingPayment(false);
     }
   };
 
@@ -909,7 +928,10 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
         visible={showAddLoanModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowAddLoanModal(false)}
+                onRequestClose={() => {
+                  setShowAddLoanModal(false);
+                  setIsAddingLoan(false);
+                }}
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
@@ -930,7 +952,10 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => setShowAddLoanModal(false)}
+                onPress={() => {
+                  setShowAddLoanModal(false);
+                  setIsAddingLoan(false);
+                }}
                 style={[styles.closeButton, { backgroundColor: colors.border }]}
               >
                 <Ionicons name="close" size={18} color={colors.text} />
@@ -1075,17 +1100,34 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.cancelButton, { backgroundColor: colors.border }]}
-                onPress={() => setShowAddLoanModal(false)}
+                onPress={() => {
+                  setShowAddLoanModal(false);
+                  setIsAddingLoan(false);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.submitButton, 
+                  { 
+                    backgroundColor: colors.primary,
+                    opacity: isAddingLoan ? 0.5 : 1
+                  }
+                ]}
                 onPress={handleAddLoan}
                 activeOpacity={0.7}
+                disabled={isAddingLoan}
               >
-                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Loan</Text>
+                {isAddingLoan ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Adding...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Loan</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1097,7 +1139,10 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
         visible={showPaymentModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowPaymentModal(false)}
+        onRequestClose={() => {
+          setShowPaymentModal(false);
+          setIsAddingPayment(false);
+        }}
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
@@ -1118,7 +1163,10 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => setShowPaymentModal(false)}
+                onPress={() => {
+                  setShowPaymentModal(false);
+                  setIsAddingPayment(false);
+                }}
                 style={[styles.closeButton, { backgroundColor: colors.border }]}
               >
                 <Ionicons name="close" size={18} color={colors.text} />
@@ -1205,17 +1253,34 @@ export default function LoansSection({ colors, isActive = true }: LoansSectionPr
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.cancelButton, { backgroundColor: colors.border }]}
-                onPress={() => setShowPaymentModal(false)}
+                onPress={() => {
+                  setShowPaymentModal(false);
+                  setIsAddingPayment(false);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.success }]}
+                style={[
+                  styles.submitButton, 
+                  { 
+                    backgroundColor: colors.success,
+                    opacity: isAddingPayment ? 0.5 : 1
+                  }
+                ]}
                 onPress={handleAddPayment}
                 activeOpacity={0.7}
+                disabled={isAddingPayment}
               >
-                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Payment</Text>
+                {isAddingPayment ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Adding...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Add Payment</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
