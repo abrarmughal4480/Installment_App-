@@ -2,7 +2,6 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 
-// Types for different PDF generation functions
 interface Loan {
   _id: string;
   loanId: string;
@@ -110,8 +109,6 @@ export default class PDFGenerator {
       this.showInfo('Generating PDF...');
 
       const generateHTML = () => {
-
-        // Generate merged payment history rows (payment + additional amount)
         const mergedHistory = [
           ...(loan.additionalAmountHistory || []).map((item: any) => ({
             ...item,
@@ -328,7 +325,6 @@ export default class PDFGenerator {
     try {
       this.showInfo('Generating PDF...');
 
-      // Calculate total profit from profit history
       const calculateTotalProfit = () => {
         if (investor.totalProfit !== undefined) {
           return investor.totalProfit;
@@ -543,35 +539,29 @@ export default class PDFGenerator {
       this.showInfo('Generating PDF...');
 
       const calculateTotals = () => {
-        // Use backend values directly
         const totalAmount = installment.totalAmount || 0;
         const advanceAmount = installment.advanceAmount || 0;
         
-        // Calculate totals directly from backend installments array
         let sumOfInstallmentAmounts = 0;
         let sumOfPaidAmounts = 0;
         
         if (Array.isArray(installment.installments) && installment.installments.length > 0) {
           installment.installments.forEach((inst: any) => {
-            // Use backend values directly - always use base amount for consistency
             const baseAmount = inst.amount || 0;
-            sumOfInstallmentAmounts += baseAmount;
+            const isPaid = inst.status === 'paid';
             
-            // Use actual backend values for paid amounts
-            const paidAmt = inst.status === 'paid' ? (inst.actualPaidAmount ?? baseAmount) : 0;
+            const displayAmount = isPaid ? (inst.actualPaidAmount ?? baseAmount) : baseAmount;
+            sumOfInstallmentAmounts += displayAmount;
+            
+            const paidAmt = isPaid ? (inst.actualPaidAmount ?? baseAmount) : 0;
             sumOfPaidAmounts += paidAmt;
           });
         }
         
-        // Total paid includes advance from backend
         const totalPaidAmount = advanceAmount + sumOfPaidAmounts;
         
-        // Remaining is total minus what's paid - SINGLE SOURCE OF TRUTH
-        // This will be used in both Balance Overview and Table
         const remaining = Math.max(0, totalAmount - totalPaidAmount);
         
-        // For table: sum of remaining amounts per installment (excluding advance)
-        // remaining amount per unpaid installment = base amount (paid installments have 0 remaining)
         let sumOfRemainingAmounts = 0;
         if (Array.isArray(installment.installments) && installment.installments.length > 0) {
           installment.installments.forEach((inst: any) => {
@@ -583,35 +573,45 @@ export default class PDFGenerator {
         }
         
         return { 
-          totalAmount,           // From backend
-          advanceAmount,        // From backend
-          paidAmount: totalPaidAmount,  // advance + sum of paid installments
-          remaining,            // totalAmount - totalPaidAmount (SAME VALUE FOR BOTH SECTIONS)
-          sumOfInstallmentAmounts,  // Sum of all installment base amounts
-          sumOfPaidAmounts,     // Sum of actualPaidAmount from backend
-          sumOfRemainingAmounts // Sum of remaining amounts for unpaid installments
+          totalAmount,
+          advanceAmount,
+          paidAmount: totalPaidAmount,
+          remaining,
+          sumOfInstallmentAmounts: Math.round(sumOfInstallmentAmounts),
+          sumOfPaidAmounts: Math.round(sumOfPaidAmounts),
+          sumOfRemainingAmounts: Math.round(sumOfRemainingAmounts)
         };
       };
 
       const totals = calculateTotals();
 
       const generateHTML = () => {
-        // Generate installment schedule rows using backend data only
         const installmentRows = Array.isArray(installment.installments) && installment.installments.length > 0
           ? installment.installments
               .slice()
               .sort((a: any, b: any) => a.installmentNumber - b.installmentNumber)
               .map((inst: any) => {
-                // Use backend values directly
                 const due = inst.dueDate ? new Date(inst.dueDate) : null;
                 const isPaid = inst.status === 'paid';
                 const baseAmount = inst.amount ?? 0;
-                // Always show base amount in installment column for consistency
-                const installmentAmount = baseAmount;
-                // Use actualPaidAmount from backend for paid column
-                const paidAmount = isPaid ? (inst.actualPaidAmount ?? baseAmount) : 0;
-                // Remaining is 0 for paid installments, base amount for unpaid
-                const remainingAmount = isPaid ? 0 : baseAmount;
+                let installmentAmount = isPaid ? (inst.actualPaidAmount ?? baseAmount) : baseAmount;
+                
+                if (Math.floor(installmentAmount) !== installmentAmount) {
+                  installmentAmount = Math.ceil(installmentAmount);
+                }
+                
+                let paidAmount = isPaid ? (inst.actualPaidAmount ?? baseAmount) : 0;
+                
+                if (Math.floor(paidAmount) !== paidAmount) {
+                  paidAmount = Math.ceil(paidAmount);
+                }
+                
+                let remainingAmount = isPaid ? 0 : baseAmount;
+                
+                if (Math.floor(remainingAmount) !== remainingAmount) {
+                  remainingAmount = Math.ceil(remainingAmount);
+                }
+                
                 let statusLabel = 'Pending';
                 let statusClass = 'status-pending';
                 if (isPaid) {
@@ -643,13 +643,12 @@ export default class PDFGenerator {
               }).join('')
           : '';
 
-        // Generate payment history rows from paid installments
         const paymentHistoryRows = installment.installments && installment.installments.length > 0 
           ? installment.installments
               .filter((inst: any) => inst.status === 'paid' && inst.paidDate)
               .map((payment: any, index: number) => {
                 const paymentDate = new Date(payment.paidDate);
-        return `
+                return `
                   <tr>
                     <td>${paymentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                     <td>TXN-${String(payment.installmentNumber).padStart(4, '0')}</td>
@@ -780,7 +779,7 @@ export default class PDFGenerator {
                 <tbody>
                   ${installmentRows}
                       <tr class="total-row">
-                        <td colspan="2">Totals</td>
+                        <td colspan="2">Total (Advance amount is excluded)</td>
                         <td>${this.formatCurrency(totals.sumOfInstallmentAmounts)}</td>
                         <td>${this.formatCurrency(totals.sumOfPaidAmounts)}</td>
                         <td>${this.formatCurrency(totals.remaining)}</td>
@@ -833,14 +832,12 @@ export default class PDFGenerator {
         base64: false,
       });
       
-      // Rename the file to have a proper name
       const newUri = uri.replace(/[^/]*\.pdf$/, fileName);
       await FileSystem.moveAsync({
         from: uri,
         to: newUri
       });
       
-      // Share the PDF
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(newUri, {
           mimeType: 'application/pdf',
